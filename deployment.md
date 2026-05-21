@@ -27,7 +27,7 @@ Add these variables in Render under the **Environment** tab:
 * `DJANGO_SECRET_KEY` = `some-very-long-random-string-here`
 * `DJANGO_DEBUG` = `False`
 * `ALLOWED_HOSTS` = `*` *(We'll restrict this in Step 3)*
-* `DATABASE_URL` = `postgresql://...` *(Your Supabase Connection String)*
+* `DATABASE_URL` = `postgresql://...` *(Your Supabase Connection Pooler Session Mode String — do NOT use the direct connection string, as Render does not support IPv6)*
 * `SUPABASE_JWT_SECRET` = `...` *(Your Supabase JWT Secret)*
 * `CORS_ALLOW_ALL_ORIGINS` = `True` *(Allows our frontend to connect during initial deploy)*
 
