@@ -44,13 +44,28 @@ const Notifications = () => {
   }
 
   const handleNotificationClick = async (notif) => {
-    if (notif.is_read || !user) return
+    if (!user) return
 
-    try {
-      await notificationsService.markAsRead(notif.id)
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n))
-    } catch (error) {
-      console.error('Error marking notification read:', error)
+    if (!notif.is_read) {
+      try {
+        await notificationsService.markAsRead(notif.id)
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n))
+      } catch (error) {
+        console.error('Error marking notification read:', error)
+      }
+    }
+
+    // Navigate to respective target
+    if (notif.type === 'like' || notif.type === 'comment') {
+      if (notif.post) {
+        navigate(`/post/${notif.post}`)
+      }
+    } else if (notif.type === 'follow') {
+      if (notif.sender_detail?.username) {
+        navigate(`/profile/${notif.sender_detail.username}`)
+      }
+    } else if (notif.type === 'message') {
+      navigate('/messages')
     }
   }
 

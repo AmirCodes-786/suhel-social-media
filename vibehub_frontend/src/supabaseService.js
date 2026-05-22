@@ -91,6 +91,30 @@ export const postsService = {
     }
   },
 
+  // Fetch a single post by ID
+  getPost: async (postId, currentUserId) => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          author_detail:profiles(*),
+          likes(user_id),
+          comments(id),
+          saved_posts(user_id)
+        `)
+        .eq('id', postId)
+        .single()
+
+      if (error) throw error
+
+      return postsService.formatPost(data, currentUserId)
+    } catch (err) {
+      console.error('Error fetching single post:', err)
+      return null
+    }
+  },
+
   // Create post
   createPost: async (authorId, content, mediaFile, mediaType) => {
     try {
