@@ -261,10 +261,10 @@ create policy "Allow users to read conversations they belong to" on public.conve
   for select using (
     exists (
       select 1 from public.conversation_participants
-      where conversation_id = id and user_id = auth.uid()
+      where conversation_id = conversations.id and user_id = auth.uid()
     ) or not exists (
       select 1 from public.conversation_participants
-      where conversation_id = id
+      where conversation_id = conversations.id
     )
   );
 
