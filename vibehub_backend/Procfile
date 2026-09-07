@@ -1,1 +1,0 @@
-web: gunicorn vibehub_backend.wsgi:application

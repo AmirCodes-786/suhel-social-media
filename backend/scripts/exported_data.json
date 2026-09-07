@@ -1,0 +1,15 @@
+{
+  "users_user": [],
+  "users_profile": [],
+  "users_follow": [],
+  "posts_post": [],
+  "posts_like": [],
+  "posts_comment": [],
+  "posts_savedpost": [],
+  "chat_conversation": [],
+  "chat_conversation_participants": [],
+  "chat_message": [],
+  "notifications_notification": [],
+  "stories_story": [],
+  "stories_storyviewer": []
+}
