@@ -34,6 +34,23 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn('Error fetching profile via REST API:', err)
+      if (supabaseUser) {
+        const meta = supabaseUser.user_metadata || {}
+        const fallbackUser = {
+          _id: supabaseUser.id,
+          id: supabaseUser.id,
+          username: meta.user_name || meta.username || meta.preferred_username || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'user'),
+          email: supabaseUser.email,
+          first_name: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || '',
+          last_name: meta.full_name?.split(' ').slice(1).join(' ') || meta.name?.split(' ').slice(1).join(' ') || '',
+          profile: {
+            profile_picture: meta.avatar_url || meta.picture || null,
+          },
+          profile_picture: meta.avatar_url || meta.picture || null,
+        }
+        setUser(fallbackUser)
+        return fallbackUser
+      }
     }
     return null
   }, [])
