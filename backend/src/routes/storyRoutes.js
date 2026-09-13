@@ -11,12 +11,15 @@ import { upload } from '../middleware/upload.js';
 
 const router = express.Router();
 
-router.post(['/:pk/view', '/:pk/view/'], authenticate, markStoryViewed);
-router.get(['/:pk/viewers', '/:pk/viewers/'], authenticate, getStoryViewers);
-router.delete(['/:pk', '/:pk/'], authenticate, deleteStory);
+router.post('/:pk/view', authenticate, markStoryViewed);
+router.post('/:pk/view/', authenticate, markStoryViewed);
+router.get('/:pk/viewers', authenticate, getStoryViewers);
+router.get('/:pk/viewers/', authenticate, getStoryViewers);
+router.delete('/:pk', authenticate, deleteStory);
+router.delete('/:pk/', authenticate, deleteStory);
 
 router
-  .route(['/', ''])
+  .route('/')
   .get(authenticate, getStories)
   .post(authenticate, upload.single('media'), createStory);
 
