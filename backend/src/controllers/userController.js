@@ -81,7 +81,14 @@ export const updateCurrentUser = async (req, res, next) => {
 export const getUserProfile = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const user = await User.findOne({ username: username.toLowerCase() }).populate('profile');
+    if (!username || username === 'undefined' || username === 'null') {
+      return res.status(404).json({ detail: 'Not found.' });
+    }
+
+    let user = await User.findOne({ username: username.toLowerCase() }).populate('profile');
+    if (!user) {
+      user = await User.findById(username).populate('profile').catch(() => null);
+    }
 
     if (!user) {
       return res.status(404).json({ detail: 'Not found.' });

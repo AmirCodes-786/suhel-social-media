@@ -42,7 +42,7 @@ const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCo
       icon: Bell, 
       badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : null 
     },
-    { name: 'Profile', path: `/profile/${user?.username}`, icon: User },
+    { name: 'Profile', path: user?.username ? `/profile/${user.username}` : '/profile/me', icon: User },
   ]
 
   return (

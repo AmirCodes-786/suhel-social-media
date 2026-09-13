@@ -38,24 +38,42 @@ const Profile = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [followModal, setFollowModal] = useState({ isOpen: false, type: 'followers' })
 
-  const isOwnProfile = currentUser?.username === username
+  const isOwnProfile = !username || username === 'undefined' || username === 'me' || currentUser?.username === username || currentUser?.id === username
 
   // Fetch profile owner details
   const fetchProfileDetails = async () => {
     if (!currentUser) return
     setLoadingProfile(true)
+    
+    // If viewing own profile, immediately show current user state
+    if (isOwnProfile) {
+      setProfileUser(currentUser)
+    }
+
     try {
-      const data = await profilesService.getProfile(username, currentUser.id)
-      if (!data) {
+      const targetUsername = isOwnProfile ? (currentUser.username || currentUser.id) : username
+      if (targetUsername && targetUsername !== 'undefined') {
+        const data = await profilesService.getProfile(targetUsername, currentUser.id)
+        if (data) {
+          setProfileUser(data)
+          return
+        }
+      }
+      
+      if (isOwnProfile) {
+        setProfileUser(currentUser)
+      } else {
         alert('User profile not found.')
         navigate('/')
-        return
       }
-      setProfileUser(data)
     } catch (error) {
       console.error('Error fetching profile user:', error)
-      alert('User profile not found.')
-      navigate('/')
+      if (isOwnProfile) {
+        setProfileUser(currentUser)
+      } else {
+        alert('User profile not found.')
+        navigate('/')
+      }
     } finally {
       setLoadingProfile(false)
     }
