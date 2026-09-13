@@ -1,85 +1,45 @@
-# 🚀 VibeHub Production Deployment Guide
-
-Deploying a full-stack app with React, Django, and Supabase can seem tricky because they need each other's URLs. 
-
-We solve this **"chicken-and-egg"** problem simply by doing it in **3 steps**:
-1. **Deploy Backend (Render)** → Copy your Render URL.
-2. **Deploy Frontend (Vercel)** → Use your Render URL, then copy your Vercel URL.
-3. **Connect & Secure (Supabase & Render)** → Paste the Vercel URL into Supabase and Render to complete the loop.
+# 🚀 VibeHub Production Deployment Guide (Node.js & React)
 
 ---
 
-## Step 1: Deploy Django Backend on Render
+## Step 1: Update Backend Service on Render
 
-Deploying the backend first allows us to generate a live backend URL.
+Your backend is now a modern **Node.js Express & MongoDB** application.
 
-### 1. Create Web Service
-1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New** -> **Web Service**.
-2. Connect your Git repository.
-3. Configure the settings:
-   - **Name**: `vibehub-backend` (or similar)
-   - **Root Directory**: `vibehub_backend`
-   - **Build Command**: `./build.sh`
-   - **Start Command**: `gunicorn vibehub_backend.wsgi:application`
+1. Go to your **[Render Dashboard](https://dashboard.render.com/)**.
+2. Click on your existing Web Service (`suhel-social-media` / `vibehub-backend`).
+3. Go to the **Settings** tab:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+4. Go to the **Environment** tab and set these Environment Variables:
 
-### 2. Set Environment Variables
-Add these variables in Render under the **Environment** tab:
-* `DJANGO_SECRET_KEY` = `some-very-long-random-string-here`
-* `DJANGO_DEBUG` = `False`
-* `ALLOWED_HOSTS` = `*` *(We'll restrict this in Step 3)*
-* `DATABASE_URL` = `postgresql://...` *(Your Supabase Connection Pooler Session Mode String — do NOT use the direct connection string, as Render does not support IPv6)*
-* `SUPABASE_JWT_SECRET` = `...` *(Your Supabase JWT Secret)*
-* `CORS_ALLOW_ALL_ORIGINS` = `True` *(Allows our frontend to connect during initial deploy)*
+| Key | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | `10000` |
+| `MONGODB_URI` | `mongodb://sohelmessi786_db_user:7kX7cf6RtzAUtQd1@ac-t7iikdc-shard-00-00.ym7hpak.mongodb.net:27017,ac-t7iikdc-shard-00-01.ym7hpak.mongodb.net:27017,ac-t7iikdc-shard-00-02.ym7hpak.mongodb.net:27017/vibehub?ssl=true&replicaSet=atlas-13usnq-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0` |
+| `JWT_SECRET` | `vibehub-super-secret-jwt-token-key-2026-production` |
+| `JWT_EXPIRES_IN` | `7d` |
+| `SUPABASE_JWT_SECRET` | `1bca2065-63e6-42a4-b1a8-3890ad578671` |
+| `CLOUDINARY_CLOUD_NAME` | `dzly2px6w` |
+| `CLOUDINARY_API_KEY` | `529899488976199` |
+| `CLOUDINARY_API_SECRET` | `i--pZ5jQCF7JF1Qu2knN8kPaZFE` |
+| `CORS_ORIGIN` | `https://demolition-boyz-vibehub.vercel.app,http://localhost:5173` |
 
-### 3. Deploy and Copy URL
-* Click **Deploy Web Service**.
-* Wait a minute. Once deployed, copy your live backend URL from the top of the Render screen (e.g. `https://vibehub-backend.onrender.com`).
-
----
-
-## Step 2: Deploy React Frontend on Vercel
-
-Now we deploy the frontend and point it to our new live backend.
-
-### 1. Import Project
-1. Go to [Vercel](https://vercel.com) and click **Add New** -> **Project**.
-2. Import your Git repository.
-3. Configure the settings:
-   - **Root Directory**: Select `vibehub_frontend`
-   - **Framework Preset**: `Vite` (automatically detected)
-
-### 2. Set Environment Variables
-Add these variables in the Vercel project configuration before clicking Deploy:
-* `VITE_API_URL` = `https://vibehub-backend.onrender.com` *(The Render URL from Step 1)*
-* `VITE_SUPABASE_URL` = `https://tjyrrdhzpslrwkacvhki.supabase.co` *(Your Supabase Project URL)*
-* `VITE_SUPABASE_ANON_KEY` = `...` *(Your Supabase Anon Key)*
-
-### 3. Deploy and Copy URL
-* Click **Deploy**.
-* Once the deployment is complete, Vercel will show your live site. Copy the main Vercel URL (e.g. `https://vibehub-app.vercel.app`).
+5. Click **Save Changes** → Click **Manual Deploy** → **Deploy latest commit**.
 
 ---
 
-## Step 3: Link Them Together (Final Security Setup)
+## Step 2: Update Vercel Frontend Configuration
 
-Now that you have both live URLs, we connect and secure the app.
-
-### 1. Configure Supabase Redirects (Auth)
-To allow users to log in/sign up on the production site:
-1. Go to your [Supabase Dashboard](https://supabase.com/).
-2. Select your project, then go to **Authentication** (sidebar) -> **URL Configuration**.
-3. Under **Site URL**, paste your Vercel URL: `https://vibehub-app.vercel.app`
-4. Under **Redirect URLs**, add your Vercel URL: `https://vibehub-app.vercel.app`
-
-### 2. Secure Django CORS (Render)
-To prevent unauthorized domains from calling your API:
-1. Go back to your Web Service on Render -> **Environment** tab.
-2. Edit/Add these environment variables:
-   - `CORS_ALLOW_ALL_ORIGINS` = `False`
-   - `CORS_ALLOWED_ORIGINS` = `https://vibehub-app.vercel.app` *(Your Vercel URL)*
-   - `ALLOWED_HOSTS` = `vibehub-backend.onrender.com` *(Your Render URL without the `https://` prefix)*
-3. Save changes. Render will automatically apply the changes and restart.
+1. Go to your **[Vercel Dashboard](https://vercel.com/dashboard)**.
+2. Select your `demolition-boyz-vibehub` project.
+3. Go to **Settings** → **Environment Variables**:
+   - `VITE_API_URL` = `https://suhel-social-media.onrender.com`
+4. Trigger a **Redeploy** on Vercel so the frontend picks up the new bundle.
 
 ---
 
-### 🎉 Done! Your full-stack application is live and secure.
+### 🎉 Result
+Your Node.js backend on Render will now handle all API endpoints (`/api/posts`, `/api/users`, `/api/stories`, `/api/chat`, etc.) and connect directly to MongoDB Atlas.
