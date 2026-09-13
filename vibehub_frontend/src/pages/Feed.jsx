@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Sidebar from '../components/Sidebar'
 import StoriesBar from '../components/StoriesBar'
 import PostCard from '../components/PostCard'
+import FeedSkeleton, { PostCardSkeleton } from '../components/FeedSkeleton'
 import CreatePostModal from '../components/CreatePostModal'
 import StoryViewerModal from '../components/StoryViewerModal'
 import { Activity, Plus, Search, Loader2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { postsService, storiesService, profilesService, followsService, notificationsService, chatService } from '../supabaseService'
-import { supabase } from '../supabaseClient'
 
 const Feed = () => {
   const { user } = useAuth()
@@ -23,26 +23,73 @@ const Feed = () => {
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   
+  // Pagination & infinite scroll states
+  const [hasMore, setHasMore] = useState(true)
+  const [nextCursor, setNextCursor] = useState(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const sentinelRef = useRef(null)
+
   // Stats for badge
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
 
-  // Fetch initial feed posts
-  const fetchFeedPosts = async () => {
+  // Fetch initial feed posts (Page 1)
+  const fetchFeedPosts = useCallback(async () => {
     if (!user) return
     setLoadingPosts(true)
     try {
-      const data = await postsService.getFeed(user.id)
+      const data = await postsService.getFeed(user.id, { limit: 12 })
       setPosts(data)
+      setHasMore(Boolean(data.hasMore))
+      setNextCursor(data.nextCursor || null)
     } catch (error) {
       console.error('Error fetching feed posts:', error)
     } finally {
       setLoadingPosts(false)
     }
-  }
+  }, [user])
+
+  // Load next batch of posts via cursor
+  const loadMorePosts = useCallback(async () => {
+    if (!user || loadingMore || !hasMore || !nextCursor) return
+    setLoadingMore(true)
+    try {
+      const nextBatch = await postsService.getFeed(user.id, { limit: 10, cursor: nextCursor })
+      if (nextBatch && nextBatch.length > 0) {
+        setPosts((prev) => [...prev, ...nextBatch])
+        setHasMore(Boolean(nextBatch.hasMore))
+        setNextCursor(nextBatch.nextCursor || null)
+      } else {
+        setHasMore(false)
+      }
+    } catch (error) {
+      console.error('Error loading more posts:', error)
+      setHasMore(false)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [user, loadingMore, hasMore, nextCursor])
+
+  // Infinite Scroll IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadingPosts) {
+          loadMorePosts()
+        }
+      },
+      { rootMargin: '300px' }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loadingPosts, loadMorePosts])
 
   // Fetch stories
-  const fetchStories = async () => {
+  const fetchStories = useCallback(async () => {
     if (!user) return
     setLoadingStories(true)
     try {
@@ -53,10 +100,10 @@ const Feed = () => {
     } finally {
       setLoadingStories(false)
     }
-  }
+  }, [user])
 
   // Fetch suggestions
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = useCallback(async () => {
     if (!user) return
     try {
       const data = await profilesService.getSuggestions(user.id)
@@ -64,23 +111,22 @@ const Feed = () => {
     } catch (error) {
       console.error('Error fetching suggestions:', error)
     }
-  }
+  }, [user])
 
-  // Fetch badge metrics
-  const fetchBadges = async () => {
+  // Fetch badge metrics using lightweight indexed count endpoints
+  const fetchBadges = useCallback(async () => {
     if (!user) return
     try {
-      const notifications = await notificationsService.getNotifications()
-      const unreadNotifs = notifications.filter(n => !n.is_read).length
-      setUnreadNotifications(unreadNotifs)
-
-      const conversations = await chatService.getConversations(user.id)
-      const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unread_count || 0), 0)
-      setUnreadMessages(totalUnread)
+      const [notifCount, chatCount] = await Promise.all([
+        notificationsService.getUnreadCount(),
+        chatService.getUnreadCount(),
+      ])
+      setUnreadNotifications(notifCount)
+      setUnreadMessages(chatCount)
     } catch (error) {
       console.error('Error fetching badges:', error)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -90,28 +136,15 @@ const Feed = () => {
       fetchBadges()
     }
 
-    // Auto-sync posts, stories and badges in background every 10s
+    // Efficient background sync: 30s interval, only when tab is visible
     const interval = setInterval(() => {
-      if (user) {
+      if (user && document.visibilityState === 'visible') {
         fetchBadges()
-        storiesService.getStories(user.id).then((freshStories) => {
-          if (freshStories) setStories(freshStories)
-        }).catch(() => {})
-        postsService.getFeed(user.id).then((freshPosts) => {
-          if (freshPosts && freshPosts.length > 0) {
-            setPosts((prev) => {
-              if (freshPosts.length !== prev.length || freshPosts[0]?.id !== prev[0]?.id) {
-                return freshPosts
-              }
-              return prev
-            })
-          }
-        }).catch(() => {})
       }
-    }, 10000)
+    }, 30000)
 
     return () => clearInterval(interval)
-  }, [user])
+  }, [user, fetchFeedPosts, fetchStories, fetchSuggestions, fetchBadges])
 
   const handlePostCreated = (newPost, type) => {
     if (type === 'post') {
@@ -124,21 +157,21 @@ const Feed = () => {
     }
   }
 
-  const handleLikeUpdate = (postId, isLiked, likesCount) => {
+  const handleLikeUpdate = useCallback((postId, isLiked, likesCount) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, is_liked: isLiked, likes_count: likesCount } : p))
     )
-  }
+  }, [])
 
-  const handleSaveUpdate = (postId, isSaved) => {
+  const handleSaveUpdate = useCallback((postId, isSaved) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, is_saved: isSaved } : p))
     )
-  }
+  }, [])
 
-  const handleDeletePost = (postId) => {
+  const handleDeletePost = useCallback((postId) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId))
-  }
+  }, [])
 
   const handleStoryViewed = (storyId) => {
     setStories((prevGroups) =>
@@ -283,10 +316,7 @@ const Feed = () => {
             {/* Posts Feed */}
             <div className="space-y-6 mt-2">
               {loadingPosts ? (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
-                  <span className="text-xs">Loading feed...</span>
-                </div>
+                <FeedSkeleton />
               ) : posts.length === 0 ? (
                 <div className="text-center py-20 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
                   <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
@@ -296,15 +326,27 @@ const Feed = () => {
                   </p>
                 </div>
               ) : (
-                posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onLikeUpdate={handleLikeUpdate}
-                    onSaveUpdate={handleSaveUpdate}
-                    onDeletePost={handleDeletePost}
-                  />
-                ))
+                <>
+                  {posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onLikeUpdate={handleLikeUpdate}
+                      onSaveUpdate={handleSaveUpdate}
+                      onDeletePost={handleDeletePost}
+                    />
+                  ))}
+
+                  {/* Infinite Scroll Bottom Sentinel & Loader */}
+                  <div ref={sentinelRef} className="py-4 flex justify-center w-full">
+                    {loadingMore && <PostCardSkeleton />}
+                    {!hasMore && posts.length > 0 && (
+                      <span className="text-[11px] text-slate-400 font-light">
+                        You're all caught up with the latest vibes ✨
+                      </span>
+                    )}
+                  </div>
+                </>
               )}
             </div>
             

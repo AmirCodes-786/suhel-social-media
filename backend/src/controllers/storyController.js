@@ -21,6 +21,22 @@ export const getStories = async (req, res, next) => {
       .sort({ createdAt: 1 })
       .populate({ path: 'author', populate: { path: 'profile' } });
 
+    // Batch-query viewer counts and user viewed status for all stories at once (Eliminates N+1)
+    const storyIds = stories.map((s) => s._id);
+
+    const [viewerCounts, userViewedStories] = await Promise.all([
+      StoryViewer.aggregate([
+        { $match: { story: { $in: storyIds } } },
+        { $group: { _id: '$story', count: { $sum: 1 } } },
+      ]),
+      currentUserId
+        ? StoryViewer.find({ story: { $in: storyIds }, viewer: currentUserId }).select('story')
+        : [],
+    ]);
+
+    const countMap = new Map(viewerCounts.map((v) => [v._id.toString(), v.count]));
+    const viewedSet = new Set(userViewedStories.map((v) => v.story.toString()));
+
     // Group stories by author
     const groupedMap = new Map();
 
@@ -34,15 +50,14 @@ export const getStories = async (req, res, next) => {
         });
       }
 
-      const [viewersCount, isViewed] = await Promise.all([
-        StoryViewer.countDocuments({ story: story._id }),
-        StoryViewer.exists({ story: story._id, viewer: currentUserId }),
-      ]);
+      const sId = story._id.toString();
+      const viewersCount = countMap.get(sId) || 0;
+      const isViewed = viewedSet.has(sId);
 
       groupedMap.get(authorId).stories.push(
         formatStory(story, currentUserId, {
           viewers_count: viewersCount,
-          is_viewed: Boolean(isViewed),
+          is_viewed: isViewed,
         })
       );
     }

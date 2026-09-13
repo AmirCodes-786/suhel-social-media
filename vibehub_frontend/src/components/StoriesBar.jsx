@@ -85,4 +85,4 @@ const StoriesBar = ({ groupedStories = [], onStoryClick, onAddStoryClick }) => {
   )
 }
 
-export default StoriesBar
+export default React.memo(StoriesBar)

@@ -49,11 +49,35 @@ const enrichPosts = async (posts, currentUserId) => {
 
 export const getPosts = async (req, res, next) => {
   try {
-    const posts = await Post.find()
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const query = {};
+
+    const cursor = req.query.before || req.query.cursor;
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (!isNaN(cursorDate.getTime())) {
+        query.createdAt = { $lt: cursorDate };
+      }
+    }
+
+    const posts = await Post.find(query)
       .sort({ createdAt: -1 })
+      .limit(limit + 1)
       .populate({ path: 'author', populate: { path: 'profile' } });
 
-    const enriched = await enrichPosts(posts, req.userId);
+    const hasMore = posts.length > limit;
+    const paginatedPosts = hasMore ? posts.slice(0, limit) : posts;
+    const enriched = await enrichPosts(paginatedPosts, req.userId);
+
+    const nextCursor = paginatedPosts.length > 0
+      ? paginatedPosts[paginatedPosts.length - 1].createdAt?.toISOString()
+      : null;
+
+    res.setHeader('X-Has-More', String(hasMore));
+    if (nextCursor) {
+      res.setHeader('X-Next-Cursor', nextCursor);
+    }
+
     return res.json(enriched);
   } catch (error) {
     next(error);
@@ -102,11 +126,35 @@ export const getFollowingFeed = async (req, res, next) => {
     const followedIds = follows.map((f) => f.following);
     const authorIds = [...followedIds, currentUserId];
 
-    const posts = await Post.find({ author: { $in: authorIds } })
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 50);
+    const query = { author: { $in: authorIds } };
+
+    const cursor = req.query.before || req.query.cursor;
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (!isNaN(cursorDate.getTime())) {
+        query.createdAt = { $lt: cursorDate };
+      }
+    }
+
+    const posts = await Post.find(query)
       .sort({ createdAt: -1 })
+      .limit(limit + 1)
       .populate({ path: 'author', populate: { path: 'profile' } });
 
-    const enriched = await enrichPosts(posts, currentUserId);
+    const hasMore = posts.length > limit;
+    const paginatedPosts = hasMore ? posts.slice(0, limit) : posts;
+    const enriched = await enrichPosts(paginatedPosts, currentUserId);
+
+    const nextCursor = paginatedPosts.length > 0
+      ? paginatedPosts[paginatedPosts.length - 1].createdAt?.toISOString()
+      : null;
+
+    res.setHeader('X-Has-More', String(hasMore));
+    if (nextCursor) {
+      res.setHeader('X-Next-Cursor', nextCursor);
+    }
+
     return res.json(enriched);
   } catch (error) {
     next(error);
@@ -115,9 +163,11 @@ export const getFollowingFeed = async (req, res, next) => {
 
 export const getTrendingFeed = async (req, res, next) => {
   try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const posts = await Post.find({ createdAt: { $gte: sevenDaysAgo } })
+      .limit(limit * 2)
       .populate({ path: 'author', populate: { path: 'profile' } });
 
     const enriched = await enrichPosts(posts, req.userId);
@@ -132,7 +182,7 @@ export const getTrendingFeed = async (req, res, next) => {
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
-    return res.json(enriched);
+    return res.json(enriched.slice(0, limit));
   } catch (error) {
     next(error);
   }

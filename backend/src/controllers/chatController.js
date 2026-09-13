@@ -15,27 +15,66 @@ export const getConversations = async (req, res, next) => {
       .sort({ updatedAt: -1 })
       .populate({ path: 'participants', populate: { path: 'profile' } });
 
-    const formattedList = await Promise.all(
-      conversations.map(async (conv) => {
-        const [lastMessage, unreadCount] = await Promise.all([
-          Message.findOne({ conversation: conv._id })
-            .sort({ createdAt: -1 })
-            .populate({ path: 'sender', populate: { path: 'profile' } }),
-          Message.countDocuments({
-            conversation: conv._id,
+    if (conversations.length === 0) {
+      return res.json([]);
+    }
+
+    const convIds = conversations.map((c) => c._id);
+
+    // Batch aggregate unread counts for all conversations in a single database query
+    const [unreadCounts, lastMessages] = await Promise.all([
+      Message.aggregate([
+        {
+          $match: {
+            conversation: { $in: convIds },
             is_read: false,
             sender: { $ne: currentUserId },
-          }),
-        ]);
+          },
+        },
+        { $group: { _id: '$conversation', count: { $sum: 1 } } },
+      ]),
+      Promise.all(
+        conversations.map((conv) =>
+          Message.findOne({ conversation: conv._id })
+            .sort({ createdAt: -1 })
+            .populate({ path: 'sender', populate: { path: 'profile' } })
+        )
+      ),
+    ]);
 
-        return formatConversation(conv, currentUserId, {
-          last_message: lastMessage,
-          unread_count: unreadCount,
-        });
-      })
-    );
+    const unreadMap = new Map(unreadCounts.map((u) => [u._id.toString(), u.count]));
+
+    const formattedList = conversations.map((conv, idx) => {
+      const convIdStr = conv._id.toString();
+      return formatConversation(conv, currentUserId, {
+        last_message: lastMessages[idx] || null,
+        unread_count: unreadMap.get(convIdStr) || 0,
+      });
+    });
 
     return res.json(formattedList);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUnreadMessageCount = async (req, res, next) => {
+  try {
+    const currentUserId = req.userId;
+    const conversations = await Conversation.find({ participants: currentUserId }).select('_id');
+    const convIds = conversations.map((c) => c._id);
+
+    if (convIds.length === 0) {
+      return res.json({ unread_count: 0 });
+    }
+
+    const totalUnread = await Message.countDocuments({
+      conversation: { $in: convIds },
+      is_read: false,
+      sender: { $ne: currentUserId },
+    });
+
+    return res.json({ unread_count: totalUnread });
   } catch (error) {
     next(error);
   }
@@ -307,6 +346,7 @@ export const clearChat = async (req, res, next) => {
 
 export default {
   getConversations,
+  getUnreadMessageCount,
   createConversation,
   getConversationDetail,
   deleteConversation,

@@ -1,7 +1,7 @@
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
 import Follow from '../models/Follow.js';
-import { populateUserCounts, formatUser } from '../utils/formatters.js';
+import { populateUserCounts, populateBatchUserCounts, formatUser } from '../utils/formatters.js';
 import { createNotification, deleteNotification } from '../services/notificationService.js';
 import { uploadMedia } from '../services/storageService.js';
 
@@ -185,11 +185,10 @@ export const getFollowers = async (req, res, next) => {
       populate: { path: 'profile' },
     });
 
-    const followerUsers = await Promise.all(
-      follows.map((f) => populateUserCounts(f.follower, req.userId))
-    );
+    const rawFollowers = follows.map((f) => f.follower).filter(Boolean);
+    const followerUsers = await populateBatchUserCounts(rawFollowers, req.userId);
 
-    return res.json(followerUsers.filter(Boolean));
+    return res.json(followerUsers);
   } catch (error) {
     next(error);
   }
@@ -209,11 +208,10 @@ export const getFollowing = async (req, res, next) => {
       populate: { path: 'profile' },
     });
 
-    const followingUsers = await Promise.all(
-      follows.map((f) => populateUserCounts(f.following, req.userId))
-    );
+    const rawFollowing = follows.map((f) => f.following).filter(Boolean);
+    const followingUsers = await populateBatchUserCounts(rawFollowing, req.userId);
 
-    return res.json(followingUsers.filter(Boolean));
+    return res.json(followingUsers);
   } catch (error) {
     next(error);
   }
@@ -233,9 +231,7 @@ export const searchUsers = async (req, res, next) => {
       .limit(20)
       .populate('profile');
 
-    const formattedUsers = await Promise.all(
-      users.map((u) => populateUserCounts(u, req.userId))
-    );
+    const formattedUsers = await populateBatchUserCounts(users, req.userId);
 
     return res.json(formattedUsers);
   } catch (error) {
@@ -260,9 +256,7 @@ export const getCreatorSuggestions = async (req, res, next) => {
       .limit(5)
       .populate('profile');
 
-    const formattedSuggestions = await Promise.all(
-      suggestions.map((u) => populateUserCounts(u, currentUserId))
-    );
+    const formattedSuggestions = await populateBatchUserCounts(suggestions, currentUserId);
 
     return res.json(formattedSuggestions);
   } catch (error) {

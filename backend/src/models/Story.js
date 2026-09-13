@@ -30,6 +30,8 @@ const storySchema = new mongoose.Schema(
   }
 );
 
+storySchema.index({ author: 1, expires_at: 1 });
+
 storySchema.virtual('id').get(function () {
   return this._id.toString();
 });

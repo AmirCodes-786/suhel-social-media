@@ -224,4 +224,4 @@ const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCo
   )
 }
 
-export default Sidebar
+export default React.memo(Sidebar)

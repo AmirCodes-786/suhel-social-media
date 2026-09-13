@@ -59,6 +59,51 @@ export const populateUserCounts = async (userDoc, currentUserId = null) => {
   });
 };
 
+export const populateBatchUserCounts = async (userDocs, currentUserId = null) => {
+  if (!userDocs || userDocs.length === 0) return [];
+
+  const userIds = userDocs.map((u) => (u._id || u.id).toString());
+
+  const [followersCounts, followingCounts, postsCounts, isFollowingDocs, profiles] = await Promise.all([
+    Follow.aggregate([
+      { $match: { following: { $in: userIds } } },
+      { $group: { _id: '$following', count: { $sum: 1 } } },
+    ]),
+    Follow.aggregate([
+      { $match: { follower: { $in: userIds } } },
+      { $group: { _id: '$follower', count: { $sum: 1 } } },
+    ]),
+    Post.aggregate([
+      { $match: { author: { $in: userIds } } },
+      { $group: { _id: '$author', count: { $sum: 1 } } },
+    ]),
+    currentUserId
+      ? Follow.find({ follower: currentUserId, following: { $in: userIds } }).select('following')
+      : [],
+    Profile.find({ user: { $in: userIds } }),
+  ]);
+
+  const followersMap = new Map(followersCounts.map((f) => [f._id.toString(), f.count]));
+  const followingMap = new Map(followingCounts.map((f) => [f._id.toString(), f.count]));
+  const postsMap = new Map(postsCounts.map((p) => [p._id.toString(), p.count]));
+  const isFollowingSet = new Set(isFollowingDocs.map((f) => f.following.toString()));
+  const profilesMap = new Map(profiles.map((pr) => [pr.user.toString(), pr]));
+
+  return userDocs.map((userDoc) => {
+    const userId = (userDoc._id || userDoc.id).toString();
+    const userObj = userDoc.toObject ? userDoc.toObject() : { ...userDoc };
+    const profile = userDoc.profile || profilesMap.get(userId);
+    userObj.profile = profile ? (profile.toObject ? profile.toObject() : profile) : {};
+
+    return formatUser(userObj, currentUserId, {
+      followers_count: followersMap.get(userId) || 0,
+      following_count: followingMap.get(userId) || 0,
+      posts_count: postsMap.get(userId) || 0,
+      is_following: isFollowingSet.has(userId),
+    });
+  });
+};
+
 export const formatPost = (post, currentUserId = null, extra = {}) => {
   if (!post) return null;
 

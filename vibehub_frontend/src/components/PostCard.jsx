@@ -181,6 +181,8 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
           <img
             src={post.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
             alt={post.author_detail?.username}
+            loading="lazy"
+            decoding="async"
             className="h-10 w-10 rounded-full border border-slate-100 object-cover group-hover:scale-105 transition-transform"
           />
           <div className="flex flex-col text-left">
@@ -280,18 +282,21 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
       {post.media && (
         <div 
           onClick={handleDoubleTap}
-          className="relative rounded-xl overflow-hidden bg-slate-50 border border-slate-100/50 flex items-center justify-center cursor-pointer select-none mb-3 max-h-[500px]"
+          className="relative rounded-xl overflow-hidden bg-slate-50 border border-slate-100/50 flex items-center justify-center cursor-pointer select-none mb-3 max-h-[500px] min-h-[160px]"
         >
           {post.media_type === 'video' ? (
             <video 
               src={post.media} 
               controls 
+              preload="metadata"
               className="max-h-[500px] w-full object-contain"
             />
           ) : (
             <img 
               src={post.media} 
               alt="Post media" 
+              loading="lazy"
+              decoding="async"
               className="max-h-[500px] w-full object-contain"
             />
           )}
@@ -505,4 +510,17 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
   )
 }
 
-export default PostCard
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.post?.id === nextProps.post?.id &&
+    prevProps.post?.is_liked === nextProps.post?.is_liked &&
+    prevProps.post?.likes_count === nextProps.post?.likes_count &&
+    prevProps.post?.is_saved === nextProps.post?.is_saved &&
+    prevProps.post?.comments_count === nextProps.post?.comments_count &&
+    prevProps.post?.content === nextProps.post?.content &&
+    prevProps.post?.author_detail?.username === nextProps.post?.author_detail?.username &&
+    prevProps.post?.author_detail?.profile?.profile_picture === nextProps.post?.author_detail?.profile?.profile_picture
+  )
+}
+
+export default React.memo(PostCard, areEqual)

@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
 import path from 'path';
@@ -20,9 +21,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Security & Middleware
+// Security & Performance Middleware
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
+app.use(compression({
+  threshold: 1024, // Compress responses larger than 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 if (!config.isProduction && process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));

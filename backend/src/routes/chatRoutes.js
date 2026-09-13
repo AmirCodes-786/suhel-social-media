@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getConversations,
+  getUnreadMessageCount,
   createConversation,
   getConversationDetail,
   deleteConversation,
@@ -14,6 +15,9 @@ import { authenticate } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 
 const router = express.Router();
+
+// Total unread count for fast badges
+router.get(['/unread-count', '/unread-count/'], authenticate, getUnreadMessageCount);
 
 // Conversations list & create
 router

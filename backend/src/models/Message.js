@@ -41,6 +41,7 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ conversation: 1, createdAt: 1 });
+messageSchema.index({ conversation: 1, is_read: 1, sender: 1 });
 
 messageSchema.virtual('id').get(function () {
   return this._id.toString();

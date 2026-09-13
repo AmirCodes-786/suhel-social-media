@@ -6,8 +6,36 @@ const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  
+  const [user, setInternalUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('vibehub_cached_user')
+      return cached ? JSON.parse(cached) : null
+    } catch {
+      return null
+    }
+  })
+
+  const setUser = useCallback((newUser) => {
+    setInternalUser(newUser)
+    if (newUser) {
+      localStorage.setItem('vibehub_cached_user', JSON.stringify(newUser))
+    } else {
+      localStorage.removeItem('vibehub_cached_user')
+    }
+  }, [])
+
+  const [loading, setLoading] = useState(() => {
+    const hasToken = localStorage.getItem('vibehub_token')
+    const hasCachedUser = localStorage.getItem('vibehub_cached_user')
+    if (hasToken && hasCachedUser) return false
+    
+    const hasSupabaseSession = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+    if (hasSupabaseSession && hasCachedUser) return false
+    
+    return true
+  })
+  
   const [authError, setAuthError] = useState(null)
 
   // Fetch follower/following/post counts for a user (via REST API)
@@ -34,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn('Error fetching profile via REST API:', err)
-      if (supabaseUser) {
+      if (supabaseUser && !localStorage.getItem('vibehub_token')) {
         const meta = supabaseUser.user_metadata || {}
         const fallbackUser = {
           _id: supabaseUser.id,
@@ -80,6 +108,9 @@ export const AuthProvider = ({ children }) => {
             }
           } catch {
             localStorage.removeItem('vibehub_token')
+            if (mounted) {
+              setUser(null)
+            }
           }
         }
 
@@ -122,9 +153,13 @@ export const AuthProvider = ({ children }) => {
   }, [fetchProfile])
 
   // Email / Password Signup
-  const signup = async (email, username, password) => {
+  const signup = async (email, password, userData = {}) => {
     setLoading(true)
     setAuthError(null)
+
+    const { username, full_name } = userData
+    const first_name = full_name ? full_name.split(' ')[0] : ''
+    const last_name = full_name ? full_name.split(' ').slice(1).join(' ') : ''
 
     // 1. Try native backend registration
     try {
@@ -132,6 +167,8 @@ export const AuthProvider = ({ children }) => {
         email,
         username,
         password,
+        first_name,
+        last_name,
       })
       if (data?.token && data?.user) {
         localStorage.setItem('vibehub_token', data.token)

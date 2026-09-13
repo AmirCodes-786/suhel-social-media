@@ -26,18 +26,13 @@ const Explore = () => {
     setSearchQuery(queryParam)
   }, [queryParam])
 
-  // Fetch trending posts (sorted by engagement on the client)
+  // Fetch trending posts directly from optimized server endpoint
   const fetchTrendingPosts = async () => {
     if (!user) return
     setLoadingTrending(true)
     try {
-      const data = await postsService.getFeed(user.id)
-      const sorted = [...data].sort((a, b) => {
-        const scoreA = (a.likes_count || 0) + (a.comments_count || 0)
-        const scoreB = (b.likes_count || 0) + (b.comments_count || 0)
-        return scoreB - scoreA
-      })
-      setTrendingPosts(sorted)
+      const data = await postsService.getTrending(user.id)
+      setTrendingPosts(data || [])
     } catch (error) {
       console.error('Error fetching trending posts:', error)
     } finally {

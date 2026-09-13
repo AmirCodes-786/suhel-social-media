@@ -28,14 +28,33 @@ const Messages = () => {
   const [loadingFriends, setLoadingFriends] = useState(false)
 
   const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
   const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = (behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
+  // Initial load scroll
   useEffect(() => {
-    scrollToBottom()
+    if (!loadingMessages && messages.length > 0) {
+      scrollToBottom('auto')
+    }
+  }, [loadingMessages])
+
+  // Smart scroll on new messages
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150
+    const lastMessage = messages[messages.length - 1]
+    const isMyMessage = lastMessage?.sender === user?.id || lastMessage?.sender === user?._id
+
+    if (isNearBottom || isMyMessage) {
+      setTimeout(() => scrollToBottom('smooth'), 100)
+    }
   }, [messages])
 
   // Fetch Conversation List
@@ -207,12 +226,17 @@ const Messages = () => {
   }
 
   const handleSendMessage = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     if (!inputText.trim() && !mediaFile) return
     if (!user || !activeConversation) return
 
     const messageText = inputText.trim()
     const tempId = `temp-${Date.now()}`
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     
     // Instant optimistic message for WhatsApp feel
     const optimisticMsg = {
@@ -307,10 +331,10 @@ const Messages = () => {
   })
 
   return (
-    <div className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
+    <div className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
       
       {/* Top Header Bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40">
+      <header className={`fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2">
           <Activity className="h-6 w-6 text-indigo-600 animate-pulse" />
@@ -349,9 +373,11 @@ const Messages = () => {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 flex pt-16 md:pl-64 h-[calc(100vh-64px)] overflow-hidden">
+      <div className={`flex-1 flex md:pl-64 overflow-hidden relative ${activeConversation ? 'pt-0 md:pt-16 pb-0' : 'pt-16 pb-16 md:pb-0'}`}>
         {/* Sidebar navigation */}
-        <Sidebar unreadMessagesCount={conversations.reduce((a,c)=>a+(c.unread_count||0),0)} />
+        <div className={`${activeConversation ? 'hidden md:block' : 'block'}`}>
+          <Sidebar unreadMessagesCount={conversations.reduce((a,c)=>a+(c.unread_count||0),0)} />
+        </div>
 
         {/* Outer Chat Split Area */}
         <div className="flex-1 flex overflow-hidden">
@@ -523,7 +549,7 @@ const Messages = () => {
                 </div>
 
                 {/* Message Feed Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 no-scrollbar">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 no-scrollbar relative">
                   {loadingMessages ? (
                     <div className="flex justify-center items-center h-full">
                       <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
@@ -634,13 +660,25 @@ const Messages = () => {
                     </div>
 
                     {/* Text Field */}
-                    <input
-                      type="text"
+                    <textarea
+                      ref={textareaRef}
                       placeholder={`Message ${getChatPartner(activeConversation)?.username || ''}...`}
                       value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
+                      onChange={(e) => {
+                        setInputText(e.target.value)
+                        e.target.style.height = 'auto'
+                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSendMessage(e)
+                        }
+                      }}
                       disabled={sending}
-                      className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 placeholder-slate-400"
+                      rows={1}
+                      style={{ resize: 'none' }}
+                      className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 placeholder-slate-400 min-h-[32px] max-h-[120px] overflow-y-auto no-scrollbar"
                     />
 
                     {/* Emoji, Mic and Send */}

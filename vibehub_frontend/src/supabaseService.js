@@ -12,19 +12,32 @@ export const uploadFile = async (folder, file) => {
 // ----------------------------------------------------
 
 export const postsService = {
-  // Fetch main feed posts
-  getFeed: async (currentUserId) => {
+  // Fetch main feed posts with cursor-based pagination
+  getFeed: async (currentUserId, options = {}) => {
     try {
-      const { data } = await api.get('/api/posts/feed/');
-      return data || [];
+      const params = {};
+      if (options.limit) params.limit = options.limit;
+      if (options.cursor) params.before = options.cursor;
+
+      const response = await api.get('/api/posts/feed/', { params });
+      const posts = Array.isArray(response.data) ? response.data : [];
+      posts.hasMore = response.headers['x-has-more'] === 'true' || response.headers['x-has-more'] === true;
+      posts.nextCursor = response.headers['x-next-cursor'] || null;
+      return posts;
     } catch (err) {
       console.error('Error fetching feed from API:', err);
       // Fallback to general posts list if feed has no following yet
       try {
-        const { data: allPosts } = await api.get('/api/posts/');
-        return allPosts || [];
+        const response = await api.get('/api/posts/');
+        const allPosts = Array.isArray(response.data) ? response.data : [];
+        allPosts.hasMore = false;
+        allPosts.nextCursor = null;
+        return allPosts;
       } catch {
-        return [];
+        const empty = [];
+        empty.hasMore = false;
+        empty.nextCursor = null;
+        return empty;
       }
     }
   },
@@ -457,6 +470,17 @@ export const chatService = {
     } catch (err) {
       console.error('Error marking conversation read:', err);
       throw err;
+    }
+  },
+
+  // Total unread messages count across all conversations
+  getUnreadCount: async () => {
+    try {
+      const { data } = await api.get('/api/chat/unread-count/');
+      return data?.unread_count || 0;
+    } catch (err) {
+      console.error('Error fetching unread message count:', err);
+      return 0;
     }
   },
 
