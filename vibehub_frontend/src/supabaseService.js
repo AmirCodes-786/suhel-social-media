@@ -182,6 +182,8 @@ export const profilesService = {
       const formData = new FormData();
       if (profileData) {
         Object.keys(profileData).forEach((key) => {
+          if (key === 'profile_picture' && avatarFile) return;
+          if (key === 'cover_picture' && coverFile) return;
           if (profileData[key] !== undefined && profileData[key] !== null) {
             formData.append(key, profileData[key]);
           }
@@ -194,7 +196,7 @@ export const profilesService = {
         formData.append('cover_picture', coverFile);
       }
 
-      const { data } = await api.patch('/api/users/me/', formData, {
+      const { data } = await api.put('/api/users/me/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return data;

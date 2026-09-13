@@ -43,28 +43,35 @@ export const updateCurrentUser = async (req, res, next) => {
     if (website !== undefined) profile.website = website;
     if (location !== undefined) profile.location = location;
 
+    let hasUploadedAvatar = false;
+    let hasUploadedCover = false;
+
     // Handle files if uploaded via multer (e.g. profile_picture, cover_picture)
     if (req.files) {
       if (req.files.profile_picture && req.files.profile_picture[0]) {
         profile.profile_picture = await uploadMedia(req.files.profile_picture[0], 'profiles/pictures');
+        hasUploadedAvatar = true;
       }
       if (req.files.cover_picture && req.files.cover_picture[0]) {
         profile.cover_picture = await uploadMedia(req.files.cover_picture[0], 'profiles/covers');
+        hasUploadedCover = true;
       }
     } else if (req.file) {
       // Single file upload
       if (req.body.type === 'cover' || req.file.fieldname === 'cover_picture') {
         profile.cover_picture = await uploadMedia(req.file, 'profiles/covers');
+        hasUploadedCover = true;
       } else {
         profile.profile_picture = await uploadMedia(req.file, 'profiles/pictures');
+        hasUploadedAvatar = true;
       }
     }
 
-    // Direct string URL updates if supplied in JSON
-    if (req.body.profile_picture && typeof req.body.profile_picture === 'string') {
+    // Direct string URL updates if supplied in JSON and no new file was uploaded
+    if (!hasUploadedAvatar && req.body.profile_picture && typeof req.body.profile_picture === 'string' && req.body.profile_picture !== '[object Object]') {
       profile.profile_picture = req.body.profile_picture;
     }
-    if (req.body.cover_picture && typeof req.body.cover_picture === 'string') {
+    if (!hasUploadedCover && req.body.cover_picture && typeof req.body.cover_picture === 'string' && req.body.cover_picture !== '[object Object]') {
       profile.cover_picture = req.body.cover_picture;
     }
 
