@@ -189,19 +189,36 @@ const Messages = () => {
   useEffect(() => {
     if (!activeConversation || !user) return
 
+    const handleNewData = (freshMessages) => {
+      if (!freshMessages) return
+      setMessages((prev) => {
+        // Pending optimistic messages (id starts with temp-)
+        const pendingOptimistic = prev.filter(m => String(m.id).startsWith('temp-'))
+        
+        // Map existing server messages to preserve any local state like client_id
+        const existingById = new Map(prev.map(m => [m.id, m]))
+        
+        const mergedServerMsgs = freshMessages.map(fm => {
+          const existing = existingById.get(fm.id)
+          return existing ? { ...fm, client_id: existing.client_id || existing.id } : fm
+        })
+
+        // Check if there's actually any difference in the server messages
+        const prevServerMsgs = prev.filter(m => !String(m.id).startsWith('temp-'))
+        if (mergedServerMsgs.length === prevServerMsgs.length && 
+            mergedServerMsgs[mergedServerMsgs.length - 1]?.id === prevServerMsgs[prevServerMsgs.length - 1]?.id) {
+          // No new server messages, just return prev to avoid unnecessary re-renders
+          return prev
+        }
+
+        // Return merged server messages + any still-pending optimistic messages
+        return [...mergedServerMsgs, ...pendingOptimistic]
+      })
+    }
+
     // Fast 2.5s polling for instant message arrival
     const interval = setInterval(() => {
-      chatService.getMessages(activeConversation.id).then((freshMessages) => {
-        if (freshMessages && freshMessages.length > 0) {
-          setMessages((prev) => {
-            if (freshMessages.length !== prev.length || 
-                freshMessages[freshMessages.length - 1]?.id !== prev[prev.length - 1]?.id) {
-              return freshMessages
-            }
-            return prev
-          })
-        }
-      }).catch(() => {})
+      chatService.getMessages(activeConversation.id).then(handleNewData).catch(() => {})
     }, 2500)
 
     // Supabase Realtime channel as backup
@@ -215,16 +232,8 @@ const Messages = () => {
           table: 'messages',
         },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newMsg = payload.new
-            if (newMsg && newMsg.conversation_id === activeConversation.id) {
-              fetchMessages(activeConversation.id)
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const oldMsgId = payload.old?.id
-            if (oldMsgId) {
-              setMessages(prev => prev.filter(m => m.id !== oldMsgId))
-            }
+          if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            chatService.getMessages(activeConversation.id).then(handleNewData)
           }
         }
       )
@@ -273,6 +282,7 @@ const Messages = () => {
     // Instant optimistic message for WhatsApp feel
     const optimisticMsg = {
       id: tempId,
+      client_id: tempId,
       conversation_id: activeConversation.id,
       sender: user.id || user._id,
       sender_detail: user,
@@ -281,6 +291,7 @@ const Messages = () => {
       media_type: mediaFile?.type?.startsWith('video/') ? 'video' : (mediaPreview ? 'image' : null),
       created_at: new Date().toISOString(),
       is_read: false,
+      isOptimistic: true,
     }
 
     setMessages((prev) => [...prev, optimisticMsg])
@@ -292,8 +303,11 @@ const Messages = () => {
     try {
       const sentData = await chatService.sendMessage(activeConversation.id, user.id, messageText, mediaFile)
       
+      // Preserve client_id so React key doesn't change, preventing flicker
+      sentData.client_id = tempId
+      
       // Replace optimistic message with actual persisted message
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? sentData : m)))
+      setMessages((prev) => prev.map((m) => (m.id === tempId || m.client_id === tempId ? sentData : m)))
       
       setConversations(prev => 
         prev.map(c => c.id === activeConversation.id 
@@ -303,8 +317,8 @@ const Messages = () => {
       )
     } catch (error) {
       console.error('Error sending message:', error)
-      setMessages((prev) => prev.filter((m) => m.id !== tempId))
-      alert('Failed to send message.')
+      // Mark as failed instead of removing it
+      setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, isOptimistic: false, failed: true } : m))
     } finally {
       setSending(false)
     }
@@ -617,10 +631,10 @@ const Messages = () => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                             layout
-                            key={msg.id} 
+                            key={msg.client_id || msg.id} 
                             className={`flex gap-3 text-left group ${isMe ? 'justify-end' : 'justify-start'}`}
                           >
-                            {isMe && (
+                            {isMe && !msg.isOptimistic && (
                               <button
                                 onClick={() => handleDeleteMessage(msg.id)}
                                 className="self-center opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 cursor-pointer"
@@ -636,10 +650,10 @@ const Messages = () => {
                                 className="h-8 w-8 rounded-full border border-slate-100 object-cover self-end shrink-0"
                               />
                             )}
-                            <div className="flex flex-col max-w-[70%]">
+                            <div className={`flex flex-col max-w-[70%] transition-opacity ${msg.isOptimistic ? 'opacity-70' : 'opacity-100'} ${msg.failed ? 'opacity-90' : ''}`}>
                               <div className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
                                 isMe 
-                                  ? 'bg-indigo-600 text-white rounded-br-none shadow-sm' 
+                                  ? (msg.failed ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white') + ' rounded-br-none shadow-sm'
                                   : 'bg-[#f3f4f6] text-slate-800 rounded-bl-none'
                               }`}>
                                 {msg.content && <p className="whitespace-pre-line">{msg.content}</p>}
@@ -649,11 +663,12 @@ const Messages = () => {
                               </div>
                               <div className={`flex items-center gap-1 mt-1 text-[8px] text-slate-400 font-light ${isMe ? 'self-end' : 'self-start'}`}>
                                 <span>{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                {isMe && (
+                                {isMe && !msg.isOptimistic && !msg.failed && (
                                   <svg className="h-3 w-3 text-indigo-500 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                   </svg>
                                 )}
+                                {msg.failed && <span className="text-rose-500 font-medium">Failed</span>}
                               </div>
                             </div>
                           </motion.div>
