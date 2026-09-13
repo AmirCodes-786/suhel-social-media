@@ -10,6 +10,7 @@ import Messages from './pages/Messages'
 import Notifications from './pages/Notifications'
 import Profile from './pages/Profile'
 import PostDetail from './pages/PostDetail'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -58,6 +59,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

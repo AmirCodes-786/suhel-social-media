@@ -99,13 +99,22 @@ const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCo
 
         {/* Bottom actions: Settings & Logout */}
         <div className="border-t border-slate-100 pt-4 space-y-1.5">
-          <Link
-            to={`/profile/${user?.username}`}
-            className="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200 group"
+          <NavLink
+            to="/settings"
+            className={({ isActive }) => `
+              flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
+              ${isActive 
+                ? 'bg-indigo-50 text-indigo-600 font-semibold' 
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}
+            `}
           >
-            <Settings className="h-5 w-5 text-slate-400 group-hover:text-slate-600" />
-            <span>Settings</span>
-          </Link>
+            {({ isActive }) => (
+              <>
+                <Settings className={`h-5 w-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <span>Settings</span>
+              </>
+            )}
+          </NavLink>
 
           <button
             onClick={() => setShowLogoutModal(true)}
