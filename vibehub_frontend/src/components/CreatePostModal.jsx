@@ -74,16 +74,17 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, defaultType = 'post' 
     }
 
     try {
+      const authorId = user.id || user._id
       let createdData
       if (publishType === 'post') {
-        createdData = await postsService.createPost(user.id, content, mediaFile, mediaType)
+        createdData = await postsService.createPost(authorId, content, mediaFile, mediaType)
       } else {
         if (!mediaFile) {
           alert('Stories require an image or video file.')
           setUploading(false)
           return
         }
-        createdData = await storiesService.createStory(user.id, mediaFile)
+        createdData = await storiesService.createStory(authorId, mediaFile)
       }
 
       if (onPostCreated) {
@@ -96,7 +97,8 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, defaultType = 'post' 
       onClose()
     } catch (error) {
       console.error('Error creating post:', error)
-      alert('Failed to publish content. Please check your credentials or network.')
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.error || error.message || 'Failed to publish content. Please check your network connection.'
+      alert(`Failed to publish content: ${errorMsg}`)
     } finally {
       setUploading(false)
     }
