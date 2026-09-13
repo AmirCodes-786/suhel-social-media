@@ -226,6 +226,7 @@ export const AuthProvider = ({ children }) => {
   // Google OAuth Login
   const loginWithGoogle = async () => {
     setLoading(true)
+    setAuthError(null)
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -237,6 +238,12 @@ export const AuthProvider = ({ children }) => {
       return data
     } catch (error) {
       setLoading(false)
+      const msg = error.message || ''
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ENOTFOUND')) {
+        const detailedMsg = 'Supabase is unreachable (project paused or deleted). Unpause your project in the Supabase Dashboard, or login with Email/Password.'
+        setAuthError(detailedMsg)
+        throw new Error(detailedMsg)
+      }
       setAuthError(error.message)
       throw error
     }
