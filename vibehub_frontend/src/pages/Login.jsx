@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Mail, Lock, ChevronRight, AlertCircle, Eye, EyeOff, Activity } from 'lucide-react'
-import { motion } from 'framer-motion'
+import ThreeAuthBackground from '../components/ThreeAuthBackground'
 
 const Login = () => {
   const { login, loginWithGoogle, user, loading: authLoading } = useAuth()
@@ -54,85 +54,51 @@ const Login = () => {
     }
   }, [authLoading, user, navigate])
 
-
-  // Debug info: expose auth state in UI to help diagnose OAuth issues
-  const renderAuthDebug = () => {
-    try {
-      // `window.__supabase_session` is not real; we show local storage keys instead
-      const devToken = localStorage.getItem('vibehub_dev_token')
-      return (
-        <div className="mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
-          <div><strong>Auth debug</strong></div>
-          <div>devToken: {devToken ? 'present' : 'none'}</div>
-        </div>
-      )
-    } catch (e) {
-      return null
-    }
-  }
-
   return (
-    <div className="min-h-screen w-screen bg-white flex flex-col md:flex-row overflow-x-hidden font-outfit">
+    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-white font-outfit">
       
-      {/* Left Column: Branding (Visible only on MD screens and above) */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black text-white p-12 flex-col justify-between relative overflow-hidden shrink-0">
-        {/* Abstract background shapes */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-pink-500/10 rounded-full blur-[100px] pointer-events-none" />
+      {/* Left Column: Polished SaaS 3D Visual Experience */}
+      <ThreeAuthBackground 
+        headline="Where creators share their authentic vibe."
+        subheadline="Stay connected with friends, share daily moments, and join discussions in a clean, modern creator space."
+      />
 
-        {/* Branding header */}
-        <div className="flex items-center gap-2 relative z-10 text-left">
-          <Activity className="h-6 w-6 text-indigo-400 animate-pulse" />
-          <span className="text-xl font-bold tracking-tight text-white">VibeHub</span>
+      {/* Right Column: Clean, Compact Auth Form (Zero Vertical Scroll) */}
+      <div className="w-full lg:w-1/2 h-screen max-h-screen flex flex-col justify-between items-center px-6 lg:px-12 py-5 sm:py-7 overflow-y-auto lg:overflow-hidden bg-white">
+        
+        {/* Top Mobile Brand Bar */}
+        <div className="w-full flex justify-between items-center lg:invisible">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm">
+              <Activity className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-base font-bold text-slate-900">VibeHub</span>
+          </Link>
+          <Link to="/signup" className="text-xs font-semibold text-indigo-600 hover:underline">
+            Sign up
+          </Link>
         </div>
 
-        {/* Core Marketing message */}
-        <div className="max-w-md relative z-10 text-left my-auto space-y-4">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight">
-            Connect with your audience in a more <span className="underline decoration-indigo-500 decoration-wavy">elegant</span> way.
-          </h1>
-          <p className="text-sm text-zinc-400 leading-relaxed font-light">
-            Join thousands of creators sharing their vibes in a minimal, high-performance social ecosystem designed for the modern web.
-          </p>
-        </div>
-
-        {/* Bottom Trust/Community stats */}
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="flex -space-x-2">
-            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-zinc-900 object-cover" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar" />
-            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-zinc-900 object-cover" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Avatar" />
-            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-zinc-900 object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Avatar" />
-            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-zinc-900 object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80" alt="Avatar" />
+        {/* Central Form Container */}
+        <div className="w-full max-w-sm my-auto text-left">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
+            <p className="text-xs text-slate-500 mt-1">Sign in to your VibeHub account</p>
           </div>
-          <span className="text-xs text-zinc-400 font-light">Trusted by 50k+ creators worldwide</span>
-        </div>
-      </div>
-
-      {/* Right Column: Authentication Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-16 bg-white relative">
-        <div className="w-full max-w-sm flex flex-col text-left">
-          
-          {/* Header Mobile Brand (only visible on mobile) */}
-          <div className="flex md:hidden items-center gap-2 mb-6">
-            <Activity className="h-6 w-6 text-indigo-600" />
-            <span className="text-lg font-bold tracking-tight text-slate-900">VibeHub</span>
-          </div>
-
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-          <p className="text-xs text-slate-500 mt-1 mb-8">Please enter your details to access your account.</p>
 
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-500/5 border border-rose-200 flex gap-3 items-start text-xs text-rose-600">
+            <div className="mb-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 flex gap-2.5 items-start text-xs text-rose-600">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Social login */}
+          {/* Google Sign In */}
           <button
+            type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2.5 transition-all shadow-sm mb-6 cursor-pointer"
+            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2.5 transition-all shadow-xs mb-3.5 cursor-pointer hover:border-slate-300"
           >
             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -140,88 +106,104 @@ const Login = () => {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            <span className="font-semibold text-slate-800">Continue with Google</span>
+            <span className="font-semibold text-slate-700">Continue with Google</span>
           </button>
 
           {/* Divider */}
-          <div className="relative mb-6 flex items-center justify-center">
+          <div className="relative mb-3.5 flex items-center justify-center">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>
             </div>
-            <span className="relative bg-white px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">or login with email</span>
+            <span className="relative bg-white px-2.5 text-[11px] font-medium text-slate-400">
+              or continue with email
+            </span>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Email address</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Email address</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                 <input
                   type="email"
                   required
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all shadow-xs"
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Password</label>
-                <Link to="/forgot-password" className="text-[10px] font-bold text-indigo-600 hover:underline">Forgot password?</Link>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-semibold text-slate-700">Password</label>
+                <Link to="/forgot-password" className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 hover:underline">
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
+                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-12 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-9 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all shadow-xs"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
 
             {/* Remember Me */}
-            <div className="flex items-center gap-2 py-1">
+            <div className="flex items-center gap-2 pt-0.5">
               <input
                 type="checkbox"
                 id="remember"
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
-              <label htmlFor="remember" className="text-[11px] text-slate-600 font-medium select-none cursor-pointer">
-                Keep me logged in for 30 days
+              <label htmlFor="remember" className="text-xs text-slate-600 select-none cursor-pointer">
+                Remember me for 30 days
               </label>
             </div>
 
+            {/* Submit CTA */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-indigo-500/10 disabled:opacity-50 transition-all cursor-pointer mt-6"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs tracking-wide flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-200 hover:shadow-md transition-all duration-200 cursor-pointer mt-3"
             >
-              <span>Log In</span>
-              <ChevronRight className="h-4 w-4" />
+              <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </form>
 
-          {/* Create account bottom */}
-          <p className="text-xs text-slate-600 mt-6 text-center">
+          {/* Footer Redirect Link */}
+          <p className="text-xs text-slate-500 mt-4 text-center">
             Don't have an account yet?{' '}
-            <Link to="/signup" className="font-semibold text-indigo-600 hover:underline">Sign up for free</Link>
+            <Link to="/signup" className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline">
+              Sign up for free
+            </Link>
           </p>
         </div>
+
+        {/* Clean Bottom Copyright */}
+        <div className="w-full text-center">
+          <p className="text-[11px] text-slate-400 font-light">
+            © 2026 VibeHub Inc. All rights reserved.
+          </p>
+        </div>
+
       </div>
+
     </div>
   )
 }
