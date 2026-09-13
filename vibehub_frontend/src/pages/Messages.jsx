@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient'
 import { chatService, followsService } from '../supabaseService'
 import { Link, useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../components/ConfirmationModal'
+import EmojiPicker from 'emoji-picker-react'
 
 const Messages = () => {
   const { user, isDevMode } = useAuth()
@@ -23,6 +24,7 @@ const Messages = () => {
   const [convSearchQuery, setConvSearchQuery] = useState('')
   const [deleteMsgModal, setDeleteMsgModal] = useState({ isOpen: false, messageId: null })
   const [clearChatModalOpen, setClearChatModalOpen] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
   const [friends, setFriends] = useState([])
   const [loadingFriends, setLoadingFriends] = useState(false)
@@ -632,33 +634,7 @@ const Messages = () => {
 
                   {/* Input Form Bar */}
                   <form onSubmit={handleSendMessage} className="flex items-center gap-3 relative bg-slate-50 border border-slate-200/50 rounded-2xl px-4 py-2">
-                    {/* Attachments */}
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={sending}
-                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
-                      >
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                        <Paperclip className="h-4.5 w-4.5" />
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
-                      >
-                        <Image className="h-4.5 w-4.5" />
-                      </button>
-                    </div>
-
+                    
                     {/* Text Field */}
                     <textarea
                       ref={textareaRef}
@@ -681,21 +657,34 @@ const Messages = () => {
                       className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 placeholder-slate-400 min-h-[32px] max-h-[120px] overflow-y-auto no-scrollbar"
                     />
 
-                    {/* Emoji, Mic and Send */}
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
-                      >
-                        <Smile className="h-4.5 w-4.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
-                      >
-                        <Mic className="h-4.5 w-4.5" />
-                      </button>
+                    {/* Emoji and Send */}
+                    <div className="flex items-center gap-1.5 text-slate-400 relative">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
+                        >
+                          <Smile className="h-4.5 w-4.5" />
+                        </button>
+                        
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-12 right-0 z-50 shadow-2xl">
+                            <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)}></div>
+                            <div className="relative z-50">
+                              <EmojiPicker 
+                                onEmojiClick={(emojiData) => {
+                                  setInputText(prev => prev + emojiData.emoji)
+                                }}
+                                width={300}
+                                height={400}
+                                searchDisabled
+                                skinTonesDisabled
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       <button
                         type="submit"
