@@ -157,6 +157,34 @@ const Messages = () => {
     fetchMessages(activeConversation.id).finally(() => setLoadingMessages(false))
   }, [activeConversation])
 
+  // Auto-focus textarea when typing anywhere in the chat
+  useEffect(() => {
+    if (!activeConversation) return
+
+    const handleGlobalKeyDown = (e) => {
+      // Don't intercept if user is already typing in an input, textarea, or contentEditable
+      const activeEl = document.activeElement
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return
+      }
+      
+      // Ignore modifier keys, functional keys, arrows, etc.
+      if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+        return
+      }
+
+      // Automatically focus textarea and append character
+      if (textareaRef.current) {
+        e.preventDefault()
+        textareaRef.current.focus()
+        setInputText((prev) => prev + e.key)
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [activeConversation])
+
   // Real-time live polling & Supabase sync for ultra-smooth WhatsApp-like chats
   useEffect(() => {
     if (!activeConversation || !user) return
@@ -553,7 +581,17 @@ const Messages = () => {
                 </div>
 
                 {/* Message Feed Area */}
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 no-scrollbar relative">
+                <div 
+                  ref={messagesContainerRef} 
+                  className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 no-scrollbar relative cursor-text"
+                  onClick={(e) => {
+                    // Only focus if they aren't selecting text or clicking a button/link
+                    const selection = window.getSelection()
+                    if (!selection.toString() && !e.target.closest('button') && !e.target.closest('a')) {
+                      textareaRef.current?.focus()
+                    }
+                  }}
+                >
                   {loadingMessages ? (
                     <div className="flex justify-center items-center h-full">
                       <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
