@@ -238,7 +238,15 @@ const Profile = () => {
         </form>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/settings"
+            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
+            title="Settings"
+          >
+            <Settings className="h-5 w-5" />
+          </Link>
+
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
