@@ -97,7 +97,12 @@ export const getUserProfile = async (req, res, next) => {
 export const followUser = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const targetUser = await User.findOne({ username: username.toLowerCase() });
+    // Support both username and UUID id lookups
+    let targetUser = await User.findOne({ username: username.toLowerCase() });
+    if (!targetUser) {
+      // Try by _id (UUID)
+      targetUser = await User.findById(username).catch(() => null);
+    }
 
     if (!targetUser) {
       return res.status(404).json({ detail: 'Not found.' });

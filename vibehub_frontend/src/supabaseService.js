@@ -234,10 +234,17 @@ export const profilesService = {
 // ----------------------------------------------------
 
 export const followsService = {
-  // Follow/Unfollow toggle
-  toggleFollow: async (targetIdentifier, currentUserId) => {
+  // Follow/Unfollow toggle — accepts username OR user id
+  toggleFollow: async (currentUserIdOrTarget, targetIdOrUndefined) => {
+    // Called as toggleFollow(currentUserId, targetId) from Feed/Profile
+    // or toggleFollow(targetUsername) from elsewhere
+    let target = currentUserIdOrTarget;
+    if (targetIdOrUndefined !== undefined) {
+      // Feed/Profile call: toggleFollow(currentUserId, targetId) — use targetId
+      target = targetIdOrUndefined;
+    }
     try {
-      const { data } = await api.post(`/api/users/${targetIdentifier}/follow/`);
+      const { data } = await api.post(`/api/users/${target}/follow/`);
       return data;
     } catch (err) {
       console.error('Error toggling follow:', err);
@@ -425,6 +432,52 @@ export const chatService = {
       return data;
     } catch (err) {
       console.error('Error marking conversation read:', err);
+      throw err;
+    }
+  },
+
+  // Alias used by Messages page
+  markAsRead: async (conversationId, userId) => {
+    try {
+      const { data } = await api.post(`/api/chat/conversations/${conversationId}/read/`);
+      return data;
+    } catch (err) {
+      console.error('Error marking conversation read:', err);
+      throw err;
+    }
+  },
+
+  // Get or create a 1-on-1 conversation
+  getOrCreateConversation: async (currentUserId, otherUserId) => {
+    try {
+      const { data } = await api.post('/api/chat/conversations/', {
+        participants: [currentUserId, otherUserId],
+      });
+      return data?.id || data;
+    } catch (err) {
+      console.error('Error getting/creating conversation:', err);
+      throw err;
+    }
+  },
+
+  // Delete a single message
+  deleteMessage: async (messageId) => {
+    try {
+      await api.delete(`/api/chat/messages/${messageId}/`);
+      return true;
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      throw err;
+    }
+  },
+
+  // Clear all messages in a conversation
+  clearChat: async (conversationId) => {
+    try {
+      const { data } = await api.delete(`/api/chat/conversations/${conversationId}/clear/`);
+      return data;
+    } catch (err) {
+      console.error('Error clearing chat:', err);
       throw err;
     }
   },

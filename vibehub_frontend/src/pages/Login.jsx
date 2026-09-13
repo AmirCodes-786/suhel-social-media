@@ -45,11 +45,15 @@ const Login = () => {
     }
   }
 
+  const hasNavigated = React.useRef(false)
+
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/')
+    if (!authLoading && user && !hasNavigated.current) {
+      hasNavigated.current = true
+      navigate('/', { replace: true })
     }
   }, [authLoading, user, navigate])
+
 
   // Debug info: expose auth state in UI to help diagnose OAuth issues
   const renderAuthDebug = () => {

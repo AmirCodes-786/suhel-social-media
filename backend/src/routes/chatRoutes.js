@@ -7,6 +7,8 @@ import {
   getMessages,
   sendMessage,
   markConversationRead,
+  deleteMessage,
+  clearChat,
 } from '../controllers/chatController.js';
 import { authenticate } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
@@ -33,6 +35,20 @@ router.post(
   ['/conversations/:conversation_id/read', '/conversations/:conversation_id/read/'],
   authenticate,
   markConversationRead
+);
+
+// Clear all messages in a conversation
+router.delete(
+  ['/conversations/:conversation_id/clear', '/conversations/:conversation_id/clear/'],
+  authenticate,
+  clearChat
+);
+
+// Delete a single message
+router.delete(
+  ['/messages/:message_id', '/messages/:message_id/'],
+  authenticate,
+  deleteMessage
 );
 
 // Conversation detail & delete

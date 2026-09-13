@@ -263,6 +263,48 @@ export const markConversationRead = async (req, res, next) => {
   }
 };
 
+export const deleteMessage = async (req, res, next) => {
+  try {
+    const currentUserId = req.userId;
+    const messageId = req.params.message_id || req.params.messageId;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ detail: 'Message not found.' });
+    }
+
+    if (message.sender.toString() !== currentUserId) {
+      return res.status(403).json({ detail: 'You can only delete your own messages.' });
+    }
+
+    await Message.deleteOne({ _id: message._id });
+    return res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const clearChat = async (req, res, next) => {
+  try {
+    const currentUserId = req.userId;
+    const conversationId = req.params.conversation_id || req.params.conversationId;
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: currentUserId,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ detail: 'Conversation not found.' });
+    }
+
+    await Message.deleteMany({ conversation: conversation._id });
+    return res.json({ success: true, message: 'Chat cleared.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getConversations,
   createConversation,
@@ -271,4 +313,6 @@ export default {
   getMessages,
   sendMessage,
   markConversationRead,
+  deleteMessage,
+  clearChat,
 };

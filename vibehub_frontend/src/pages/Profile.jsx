@@ -80,26 +80,8 @@ const Profile = () => {
     if (!isOwnProfile || !currentUser) return
     setLoadingContent(true)
     try {
-      const { data, error } = await supabase
-        .from('saved_posts')
-        .select(`
-          post:posts(
-            *,
-            author_detail:profiles(*),
-            likes(user_id),
-            comments(id),
-            saved_posts(user_id)
-          )
-        `)
-        .eq('user_id', currentUser.id)
-
-      if (error) throw error
-
-      const formatted = (data || [])
-        .map(row => row.post ? postsService.formatPost(row.post, currentUser.id) : null)
-        .filter(Boolean)
-
-      setSavedPosts(formatted)
+      const data = await postsService.getSavedPosts(currentUser.id)
+      setSavedPosts(data || [])
     } catch (error) {
       console.error('Error fetching saved posts:', error)
     } finally {
