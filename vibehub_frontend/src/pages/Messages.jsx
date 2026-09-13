@@ -335,7 +335,7 @@ const Messages = () => {
   })
 
   return (
-    <PageTransition className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
+    <div className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
       
       {/* Top Header Bar */}
       <header className={`fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
@@ -766,7 +766,7 @@ const Messages = () => {
         cancelText="Cancel"
         isDestructive={true}
       />
-    </PageTransition>
+    </div>
   )
 }
 
