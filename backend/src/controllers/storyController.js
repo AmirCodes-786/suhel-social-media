@@ -164,7 +164,7 @@ export const getStoryViewers = async (req, res, next) => {
 
 export const deleteStory = async (req, res, next) => {
   try {
-    const currentUserId = req.userId;
+    const currentUserId = (req.userId || req.user?._id || req.user?.id || '').toString();
     const storyId = req.params.pk || req.params.id;
 
     const story = await Story.findById(storyId);
@@ -172,7 +172,9 @@ export const deleteStory = async (req, res, next) => {
       return res.status(404).json({ detail: 'Story not found.' });
     }
 
-    if (story.author.toString() !== currentUserId) {
+    const storyAuthorId = (story.author?._id || story.author?.id || story.author || '').toString();
+
+    if (storyAuthorId && currentUserId && storyAuthorId !== currentUserId) {
       return res.status(403).json({
         detail: 'You can only delete your own stories.',
       });
@@ -181,7 +183,7 @@ export const deleteStory = async (req, res, next) => {
     await StoryViewer.deleteMany({ story: story._id });
     await Story.findByIdAndDelete(story._id);
 
-    return res.status(204).send();
+    return res.status(200).json({ success: true, message: 'Story deleted successfully.' });
   } catch (error) {
     next(error);
   }
