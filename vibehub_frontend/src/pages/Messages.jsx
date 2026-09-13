@@ -635,6 +635,26 @@ const Messages = () => {
                   {/* Input Form Bar */}
                   <form onSubmit={handleSendMessage} className="flex items-center gap-3 relative bg-slate-50 border border-slate-200/50 rounded-2xl px-4 py-2">
                     
+                    {/* Attachments (Photo only) */}
+                    <div className="flex items-center text-slate-400">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={sending}
+                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
+                        title="Upload Photo"
+                      >
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <Image className="h-4.5 w-4.5" />
+                      </button>
+                    </div>
+
                     {/* Text Field */}
                     <textarea
                       ref={textareaRef}
