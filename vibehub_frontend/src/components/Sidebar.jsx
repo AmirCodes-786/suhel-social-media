@@ -67,20 +67,29 @@ const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCo
               <NavLink
                 key={item.name}
                 to={item.path}
-                className={({ isActive }) => `
+                className={`
                   relative flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
-                  ${isActive 
-                    ? 'bg-indigo-50 text-indigo-600 font-semibold' 
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}
+                  ${isActive ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'}
                 `}
               >
-                <Icon className={`h-5 w-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                <span>{item.name}</span>
-                {item.badge && (
-                  <span className="absolute right-4 flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-bold text-white ring-2 ring-white">
-                    {item.badge}
-                  </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebarActiveIndicator"
+                    className="absolute inset-0 bg-indigo-50 rounded-xl z-0"
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  />
                 )}
+                <div className="relative z-10 flex items-center gap-4 w-full">
+                  <motion.div whileTap={{ scale: 0.9 }}>
+                    <Icon className={`h-5 w-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                  </motion.div>
+                  <span>{item.name}</span>
+                  {item.badge && (
+                    <span className="absolute right-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-bold text-white ring-2 ring-white">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               </NavLink>
             )
           })}

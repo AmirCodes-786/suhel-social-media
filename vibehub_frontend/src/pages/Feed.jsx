@@ -5,6 +5,7 @@ import PostCard from '../components/PostCard'
 import FeedSkeleton, { PostCardSkeleton } from '../components/FeedSkeleton'
 import CreatePostModal from '../components/CreatePostModal'
 import StoryViewerModal from '../components/StoryViewerModal'
+import PageTransition from '../components/PageTransition'
 import { Activity, Plus, Search, Loader2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -214,7 +215,7 @@ const Feed = () => {
   ]
 
   return (
-    <div className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
+    <PageTransition className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
       
       {/* Top Header Bar */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40">
@@ -449,7 +450,7 @@ const Feed = () => {
           onStoryDeleted={handleStoryDeleted}
         />
       )}
-    </div>
+    </PageTransition>
   )
 }
 

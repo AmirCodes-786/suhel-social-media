@@ -21,6 +21,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../supabaseClient'
 import { postsService, profilesService, followsService, chatService } from '../supabaseService'
+import PageTransition from '../components/PageTransition'
+import { motion } from 'framer-motion'
 
 const Profile = () => {
   const { username } = useParams()
@@ -213,7 +215,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
+    <PageTransition className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
       
       {/* Top Header Bar */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40">
@@ -410,29 +412,43 @@ const Profile = () => {
               {/* Profile Grid List Tabs */}
               <div className="flex-1 flex flex-col bg-slate-50 min-h-[400px]">
                 {/* Tab Navigation header */}
-                <div className="flex border-y border-slate-100 bg-white shrink-0">
+                <div className="flex border-y border-slate-100 bg-white shrink-0 relative">
                   <button
                     onClick={() => setActiveTab('posts')}
-                    className={`flex-1 py-3 text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
+                    className={`relative flex-1 py-3 text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       activeTab === 'posts'
-                        ? 'border-indigo-600 text-indigo-600 bg-indigo-50/10'
-                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                        ? 'text-indigo-600'
+                        : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
-                    <Grid className="h-4 w-4" />
-                    <span>Posts</span>
+                    <Grid className="h-4 w-4 relative z-10" />
+                    <span className="relative z-10">Posts</span>
+                    {activeTab === 'posts' && (
+                      <motion.div
+                        layoutId="profileTabIndicator"
+                        className="absolute inset-0 bg-indigo-50/50 border-b-2 border-indigo-600 z-0"
+                        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                      />
+                    )}
                   </button>
                   {isOwnProfile && (
                     <button
                       onClick={() => setActiveTab('saved')}
-                      className={`flex-1 py-3 text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
+                      className={`relative flex-1 py-3 text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         activeTab === 'saved'
-                          ? 'border-indigo-600 text-indigo-600 bg-indigo-50/10'
-                          : 'border-transparent text-slate-400 hover:text-slate-600'
+                          ? 'text-indigo-600'
+                          : 'text-slate-400 hover:text-slate-600'
                       }`}
                     >
-                      <Bookmark className="h-4 w-4" />
-                      <span>Saved</span>
+                      <Bookmark className="h-4 w-4 relative z-10" />
+                      <span className="relative z-10">Saved</span>
+                      {activeTab === 'saved' && (
+                        <motion.div
+                          layoutId="profileTabIndicator"
+                          className="absolute inset-0 bg-indigo-50/50 border-b-2 border-indigo-600 z-0"
+                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                        />
+                      )}
                     </button>
                   )}
                 </div>
@@ -506,7 +522,7 @@ const Profile = () => {
         type={followModal.type}
         username={username}
       />
-    </div>
+    </PageTransition>
   )
 }
 

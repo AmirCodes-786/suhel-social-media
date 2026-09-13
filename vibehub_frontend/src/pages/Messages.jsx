@@ -7,6 +7,8 @@ import { chatService, followsService } from '../supabaseService'
 import { Link, useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../components/ConfirmationModal'
 import EmojiPicker from 'emoji-picker-react'
+import PageTransition from '../components/PageTransition'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const Messages = () => {
   const { user, isDevMode } = useAuth()
@@ -333,7 +335,7 @@ const Messages = () => {
   })
 
   return (
-    <div className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
+    <PageTransition className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
       
       {/* Top Header Bar */}
       <header className={`fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
@@ -572,7 +574,14 @@ const Messages = () => {
                         const isMe = msg.sender === user?.id
                         
                         return (
-                          <div key={msg.id} className={`flex gap-3 text-left group ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            layout
+                            key={msg.id} 
+                            className={`flex gap-3 text-left group ${isMe ? 'justify-end' : 'justify-start'}`}
+                          >
                             {isMe && (
                               <button
                                 onClick={() => handleDeleteMessage(msg.id)}
@@ -609,7 +618,7 @@ const Messages = () => {
                                 )}
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         )
                       })}
                     </>
@@ -757,7 +766,7 @@ const Messages = () => {
         cancelText="Cancel"
         isDestructive={true}
       />
-    </div>
+    </PageTransition>
   )
 }
 

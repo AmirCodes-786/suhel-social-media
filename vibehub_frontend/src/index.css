@@ -30,6 +30,16 @@
   body {
     @apply bg-slate-50 text-slate-900 antialiased overflow-x-hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus and Selection */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-indigo-500/80 ring-offset-2 ring-offset-slate-50 transition-shadow;
+  }
+
+  ::selection {
+    @apply bg-indigo-500/20 text-indigo-900;
   }
 
   /* Custom Scrollbar for Light Theme */
@@ -38,10 +48,20 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-slate-50;
+    @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+    @apply bg-slate-200/80 rounded-full hover:bg-slate-300 transition-colors;
+  }
+
+  /* Accessibility: Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

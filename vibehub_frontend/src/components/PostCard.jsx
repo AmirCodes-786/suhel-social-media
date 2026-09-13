@@ -171,9 +171,12 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm mb-6 p-4 text-left font-outfit relative"
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      layout
+      className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08)] transition-shadow duration-300 mb-6 p-4 text-left font-outfit relative"
     >
       {/* Header (User profile row) */}
       <div className="flex items-center justify-between pb-3.5">
@@ -234,13 +237,14 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setShowDeleteConfirm(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl"
             >
@@ -327,8 +331,8 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
             className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer disabled:opacity-60"
           >
             <motion.div
-              whileTap={{ scale: 1.3 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+              whileTap={{ scale: 1.4 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Heart className={`h-5 w-5 transition-colors ${post.is_liked ? 'fill-rose-500 text-rose-500' : ''}`} />
             </motion.div>
@@ -413,6 +417,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="border-t border-slate-100 bg-slate-50/50 -mx-4 -mb-4 mt-4 overflow-hidden"
           >
             {/* Comment List */}
