@@ -146,6 +146,7 @@ const StoryViewerModal = ({ activeGroup, groupList = [], onClose, onStoryViewed,
   }
 
   const confirmDeleteStory = async () => {
+    setShowDeleteConfirm(false)
     try {
       await storiesService.deleteStory(currentStory.id)
       if (onStoryDeleted) {
@@ -153,6 +154,7 @@ const StoryViewerModal = ({ activeGroup, groupList = [], onClose, onStoryViewed,
       }
     } catch (error) {
       console.error('Error deleting story:', error)
+      alert('Failed to delete story.')
     }
   }
 

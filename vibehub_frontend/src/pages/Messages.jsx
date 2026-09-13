@@ -134,10 +134,26 @@ const Messages = () => {
     fetchMessages(activeConversation.id).finally(() => setLoadingMessages(false))
   }, [activeConversation])
 
-  // Real-time Setup
+  // Real-time live polling & Supabase sync for ultra-smooth WhatsApp-like chats
   useEffect(() => {
     if (!activeConversation || !user) return
 
+    // Fast 2.5s polling for instant message arrival
+    const interval = setInterval(() => {
+      chatService.getMessages(activeConversation.id).then((freshMessages) => {
+        if (freshMessages && freshMessages.length > 0) {
+          setMessages((prev) => {
+            if (freshMessages.length !== prev.length || 
+                freshMessages[freshMessages.length - 1]?.id !== prev[prev.length - 1]?.id) {
+              return freshMessages
+            }
+            return prev
+          })
+        }
+      }).catch(() => {})
+    }, 2500)
+
+    // Supabase Realtime channel as backup
     const channel = supabase
       .channel(`room:${activeConversation.id}`)
       .on(
@@ -164,9 +180,22 @@ const Messages = () => {
       .subscribe()
 
     return () => {
+      clearInterval(interval)
       supabase.removeChannel(channel)
     }
   }, [activeConversation, user])
+
+  // Background polling for conversation list updates (every 8s)
+  useEffect(() => {
+    if (!user) return
+    const convInterval = setInterval(() => {
+      chatService.getConversations(user.id).then((data) => {
+        if (data) setConversations(data)
+      }).catch(() => {})
+    }, 8000)
+
+    return () => clearInterval(convInterval)
+  }, [user])
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -182,11 +211,33 @@ const Messages = () => {
     if (!inputText.trim() && !mediaFile) return
     if (!user || !activeConversation) return
 
+    const messageText = inputText.trim()
+    const tempId = `temp-${Date.now()}`
+    
+    // Instant optimistic message for WhatsApp feel
+    const optimisticMsg = {
+      id: tempId,
+      conversation_id: activeConversation.id,
+      sender: user.id || user._id,
+      sender_detail: user,
+      content: messageText,
+      media: mediaPreview,
+      media_type: mediaFile?.type?.startsWith('video/') ? 'video' : (mediaPreview ? 'image' : null),
+      created_at: new Date().toISOString(),
+      is_read: false,
+    }
+
+    setMessages((prev) => [...prev, optimisticMsg])
+    setInputText('')
+    setMediaFile(null)
+    setMediaPreview(null)
     setSending(true)
+
     try {
-      const sentData = await chatService.sendMessage(activeConversation.id, user.id, inputText, mediaFile)
+      const sentData = await chatService.sendMessage(activeConversation.id, user.id, messageText, mediaFile)
       
-      setMessages((prev) => [...prev, sentData])
+      // Replace optimistic message with actual persisted message
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? sentData : m)))
       
       setConversations(prev => 
         prev.map(c => c.id === activeConversation.id 
@@ -194,12 +245,9 @@ const Messages = () => {
           : c
         ).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at))
       )
-
-      setInputText('')
-      setMediaFile(null)
-      setMediaPreview(null)
     } catch (error) {
       console.error('Error sending message:', error)
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
       alert('Failed to send message.')
     } finally {
       setSending(false)

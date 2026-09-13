@@ -90,41 +90,35 @@ const Feed = () => {
       fetchBadges()
     }
 
+    // Auto-sync posts, stories and badges in background every 10s
     const interval = setInterval(() => {
-      if (user) fetchBadges()
-    }, 30000)
-    return () => clearInterval(interval)
-  }, [user])
-
-  useEffect(() => {
-    if (!user) return
-
-    const channel = supabase
-      .channel('feed-posts-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'posts',
-        },
-        (payload) => {
-          const deletedId = payload.old?.id
-          if (deletedId) {
-            setPosts((prev) => prev.filter((p) => p.id !== deletedId))
+      if (user) {
+        fetchBadges()
+        storiesService.getStories(user.id).then((freshStories) => {
+          if (freshStories) setStories(freshStories)
+        }).catch(() => {})
+        postsService.getFeed(user.id).then((freshPosts) => {
+          if (freshPosts && freshPosts.length > 0) {
+            setPosts((prev) => {
+              if (freshPosts.length !== prev.length || freshPosts[0]?.id !== prev[0]?.id) {
+                return freshPosts
+              }
+              return prev
+            })
           }
-        }
-      )
-      .subscribe()
+        }).catch(() => {})
+      }
+    }, 10000)
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => clearInterval(interval)
   }, [user])
 
   const handlePostCreated = (newPost, type) => {
     if (type === 'post') {
-      setPosts((prev) => [newPost, ...prev])
+      if (newPost) {
+        setPosts((prev) => [newPost, ...prev])
+      }
+      fetchFeedPosts()
     } else {
       fetchStories()
     }

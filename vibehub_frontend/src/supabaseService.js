@@ -329,6 +329,17 @@ export const storiesService = {
       return [];
     }
   },
+
+  // Delete a story
+  deleteStory: async (storyId) => {
+    try {
+      await api.delete(`/api/stories/${storyId}/`);
+      return true;
+    } catch (err) {
+      console.error('Error deleting story:', err);
+      throw err;
+    }
+  },
 };
 
 // ----------------------------------------------------

@@ -109,6 +109,37 @@ export const getMe = async (req, res, next) => {
   }
 };
 
+export const changePassword = async (req, res, next) => {
+  try {
+    const { old_password, new_password } = req.body;
+    if (!new_password) {
+      return res.status(400).json({ error: 'New password is required.' });
+    }
+
+    const user = await User.findById(req.userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.password && old_password) {
+      const isMatch = await user.comparePassword(old_password);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Incorrect current password.' });
+      }
+    }
+
+    user.password = new_password;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Password changed successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const logout = async (req, res) => {
   return res.json({
     success: true,
@@ -121,4 +152,5 @@ export default {
   login,
   getMe,
   logout,
+  changePassword,
 };

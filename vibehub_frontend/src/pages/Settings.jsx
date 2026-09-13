@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar'
 import CreatePostModal from '../components/CreatePostModal'
 import { useAuth } from '../context/AuthContext'
 import { profilesService } from '../supabaseService'
+import api from '../api'
 import { 
   User, 
   Shield, 
@@ -19,7 +20,9 @@ import {
   AtSign,
   KeyRound,
   LogOut,
-  Sparkles
+  Sparkles,
+  Lock,
+  Sun
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -53,11 +56,27 @@ const Settings = () => {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Password Change
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+
   // Preference switches
-  const [emailNotifs, setEmailNotifs] = useState(true)
-  const [pushNotifs, setPushNotifs] = useState(true)
-  const [privateAccount, setPrivateAccount] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
+  const [emailNotifs, setEmailNotifs] = useState(() => {
+    return localStorage.getItem('vibehub_pref_email') !== 'false'
+  })
+  const [pushNotifs, setPushNotifs] = useState(() => {
+    return localStorage.getItem('vibehub_pref_push') !== 'false'
+  })
+  const [privateAccount, setPrivateAccount] = useState(() => {
+    return localStorage.getItem('vibehub_pref_private') === 'true'
+  })
+  const [darkMode, setDarkMode] = useState(() => {
+    return document.documentElement.classList.contains('dark') || localStorage.getItem('vibehub_theme') === 'dark'
+  })
 
   useEffect(() => {
     if (user) {
@@ -71,6 +90,32 @@ const Settings = () => {
       setCoverPreview(user.profile?.cover_picture || null)
     }
   }, [user])
+
+  const handleToggleDarkMode = (enabled) => {
+    setDarkMode(enabled)
+    if (enabled) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('vibehub_theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('vibehub_theme', 'light')
+    }
+  }
+
+  const handleTogglePrivate = (enabled) => {
+    setPrivateAccount(enabled)
+    localStorage.setItem('vibehub_pref_private', enabled ? 'true' : 'false')
+  }
+
+  const handleToggleEmailNotifs = (enabled) => {
+    setEmailNotifs(enabled)
+    localStorage.setItem('vibehub_pref_email', enabled ? 'true' : 'false')
+  }
+
+  const handleTogglePushNotifs = (enabled) => {
+    setPushNotifs(enabled)
+    localStorage.setItem('vibehub_pref_push', enabled ? 'true' : 'false')
+  }
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
@@ -120,6 +165,38 @@ const Settings = () => {
     }
   }
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.')
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters.')
+      return
+    }
+
+    setPasswordSaving(true)
+    setPasswordError('')
+    setPasswordSuccess(false)
+
+    try {
+      await api.post('/api/auth/change-password', {
+        old_password: oldPassword,
+        new_password: newPassword,
+      })
+      setPasswordSuccess(true)
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setTimeout(() => setPasswordSuccess(false), 4000)
+    } catch (err) {
+      setPasswordError(err?.response?.data?.error || err.message || 'Failed to change password.')
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#fafafa] flex font-outfit text-slate-800">
       {/* Sidebar Navigation */}
@@ -131,7 +208,7 @@ const Settings = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Settings</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your account preferences, profile details, and notifications.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage your account preferences, profile details, and security.</p>
         </div>
 
         {/* Tabs & Layout */}
@@ -385,7 +462,7 @@ const Settings = () => {
                 <div className="space-y-6 text-left">
                   <div>
                     <h2 className="text-xl font-bold text-slate-900">Account Details</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Manage your account credentials and security.</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Manage your credentials, password, and security.</p>
                   </div>
 
                   <div className="space-y-4">
@@ -413,9 +490,72 @@ const Settings = () => {
                     </div>
                   </div>
 
+                  {/* Change Password Form */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Change Password</h3>
+                    <p className="text-xs text-slate-500 mb-4">Update your account password for enhanced security.</p>
+
+                    {passwordError && (
+                      <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-100 text-xs text-rose-600 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span>{passwordError}</span>
+                      </div>
+                    )}
+
+                    {passwordSuccess && (
+                      <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 flex items-center gap-2">
+                        <Check className="h-4 w-4 shrink-0" />
+                        <span>Password updated successfully!</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleChangePassword} className="space-y-3 max-w-md">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Current Password</label>
+                        <input
+                          type="password"
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">New Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Confirm New Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={passwordSaving}
+                        className="mt-2 bg-slate-900 hover:bg-black text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {passwordSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
+                        <span>Update Password</span>
+                      </button>
+                    </form>
+                  </div>
+
                   {/* Privacy switch */}
-                  <div className="pt-4 border-t border-slate-100 space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800">Privacy</h3>
+                  <div className="pt-6 border-t border-slate-100 space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800">Privacy Controls</h3>
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
                       <div>
                         <span className="text-xs font-bold text-slate-800 block">Private Account</span>
@@ -424,7 +564,7 @@ const Settings = () => {
                       <input
                         type="checkbox"
                         checked={privateAccount}
-                        onChange={(e) => setPrivateAccount(e.target.checked)}
+                        onChange={(e) => handleTogglePrivate(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
                     </div>
@@ -463,7 +603,7 @@ const Settings = () => {
                       <input
                         type="checkbox"
                         checked={pushNotifs}
-                        onChange={(e) => setPushNotifs(e.target.checked)}
+                        onChange={(e) => handleTogglePushNotifs(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
                     </div>
@@ -476,7 +616,7 @@ const Settings = () => {
                       <input
                         type="checkbox"
                         checked={emailNotifs}
-                        onChange={(e) => setEmailNotifs(e.target.checked)}
+                        onChange={(e) => handleToggleEmailNotifs(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
                     </div>
@@ -500,7 +640,7 @@ const Settings = () => {
                     <input
                       type="checkbox"
                       checked={darkMode}
-                      onChange={(e) => setDarkMode(e.target.checked)}
+                      onChange={(e) => handleToggleDarkMode(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                   </div>

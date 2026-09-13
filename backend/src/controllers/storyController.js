@@ -162,9 +162,35 @@ export const getStoryViewers = async (req, res, next) => {
   }
 };
 
+export const deleteStory = async (req, res, next) => {
+  try {
+    const currentUserId = req.userId;
+    const storyId = req.params.pk || req.params.id;
+
+    const story = await Story.findById(storyId);
+    if (!story) {
+      return res.status(404).json({ detail: 'Story not found.' });
+    }
+
+    if (story.author.toString() !== currentUserId) {
+      return res.status(403).json({
+        detail: 'You can only delete your own stories.',
+      });
+    }
+
+    await StoryViewer.deleteMany({ story: story._id });
+    await Story.findByIdAndDelete(story._id);
+
+    return res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getStories,
   createStory,
   markStoryViewed,
   getStoryViewers,
+  deleteStory,
 };
