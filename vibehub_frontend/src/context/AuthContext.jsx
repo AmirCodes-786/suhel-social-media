@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 import api from '../api'
+import { cacheHelpers } from './QueryProvider'
 
 const AuthContext = createContext(null)
 
@@ -114,13 +115,16 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
-        // 2. Check Supabase session
+    // 2. Check Supabase session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession()
         if (error) console.warn('getSession error:', error)
 
         if (currentSession?.user && mounted) {
           setSession(currentSession)
-          fetchProfile(currentSession.user.id, currentSession.user)
+          // Only fetch profile if user not already populated from native token
+          if (!localStorage.getItem('vibehub_token')) {
+            await fetchProfile(currentSession.user.id, currentSession.user)
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
@@ -134,11 +138,31 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return
+      
+      // Intentional auth event handling
+      if (event === 'TOKEN_REFRESHED') {
+        // Only update session tokens without refetching profile or replacing user object reference
+        setSession(newSession)
+        return
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null)
+        if (!localStorage.getItem('vibehub_token')) {
+          setUser(null)
+        }
+        setLoading(false)
+        return
+      }
+
       setSession(newSession)
       if (newSession?.user) {
-        fetchProfile(newSession.user.id, newSession.user)
+        // For SIGNED_IN or USER_UPDATED, fetch profile
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          await fetchProfile(newSession.user.id, newSession.user)
+        }
       } else if (!localStorage.getItem('vibehub_token')) {
         setUser(null)
       }
@@ -289,6 +313,7 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = async () => {
     localStorage.removeItem('vibehub_token')
+    cacheHelpers.clearUserCache()
     setUser(null)
     setSession(null)
     setLoading(false)

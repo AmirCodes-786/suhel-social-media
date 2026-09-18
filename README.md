@@ -1,322 +1,366 @@
 # 🚀 VibeHub - Full-Stack Modern Social Media Platform
 
-> A production-ready, high-performance, and fully responsive Full-Stack Social Media Application built with the modern **MERN** stack (MongoDB, Express.js, React, Node.js) and Vite.
+> A production-ready, high-performance, and fully responsive full-stack social networking platform engineered with **React 19**, **Vite**, **Tailwind CSS v4**, **TanStack Query v5**, **Express.js**, **MongoDB**, **JWT Authentication**, and **Supabase**.
 
 ---
 
-## 📌 1. Project Title & Overview
+## 📌 1. Project Overview & Architecture
 
-**VibeHub** is a feature-rich, full-stack social networking web application engineered for modern social interactions. It features rich feed browsing, multimedia posts, 24-hour ephemeral stories, user follow/unfollow dynamics, direct messaging, real-time-ready notifications, interactive comments, and full profile customization.
+**VibeHub** is a production-grade social platform designed for fluid social discovery, media sharing, and real-time interaction. It combines modern frontend engineering with a modular backend to provide high throughput, zero unnecessary refetches, and rich multimedia experiences.
 
-### 🎯 Who is this for?
-- 🎓 **Students & Beginners:** Learn production-level MERN stack development, modular REST API architecture, secure JWT authentication, and clean component state management.
-- 💻 **Developers & Freelancers:** Skip hundreds of hours of repetitive boilerplate setup and launch customized social, community, or niche networking platforms for clients.
-- 🚀 **Startups & Entrepreneurs:** Use as an out-of-the-box Minimum Viable Product (MVP) ready to scale, customize, and deploy.
+### 🌟 Key Highlights & Architectural Upgrades
 
----
-
-## ✨ 2. Key Features
-
-- 🔐 **Secure Authentication & Authorization:**
-  - Complete user registration and login with encrypted password hashing (`bcryptjs`).
-  - Secure stateless JWT (`jsonwebtoken`) token-based authorization.
-  - Route guards for private pages and API endpoint protection.
-- 📱 **Modern & Responsive UI/UX:**
-  - Mobile-first, tablet, and desktop-optimized design.
-  - Smooth transitions and interactive micro-animations powered by Tailwind CSS & Framer Motion.
-  - Dark & light mode aesthetic with glassmorphism elements.
-- 📰 **Interactive Social Feed:**
-  - Create, view, edit, and delete rich media posts with text and image uploads.
-  - Like/unlike posts instantly with live counter updates.
-  - Threaded comment system with timestamp formatting.
-  - Save/bookmark favorite posts for later reading.
-- ⏱️ **Stories (24-Hour Ephemeral Content):**
-  - Post and view photo stories with automatic 24-hour expiration.
-  - Story viewer with user status indicators.
-- 💬 **Direct Messaging / Chat System:**
-  - 1-on-1 private conversations and messaging interface.
-  - Chat history and conversation list.
-- 🔔 **Real-Time Style Notifications:**
-  - Instant activity notifications for likes, follows, comments, and messages.
-  - One-click mark as read and unread counter badges.
-- 👤 **Comprehensive User Profiles:**
-  - Customizable profile photos (avatars) and bio descriptions.
-  - Follower and following counters with user relationship tracking.
-  - Dedicated tabs for user posts, saved items, and media uploads.
-- 🔍 **Search & Discovery:**
-  - Search users by username, name, or profile keywords.
-- 🛡️ **Production-Grade Backend Security:**
-  - Rate limiting against brute-force attacks (`express-rate-limit`).
-  - Security headers using `helmet`.
-  - CORS whitelisting and payload size limits.
+1. **Tab-Switch Feed Stability:**
+   - Eliminated the common bug where switching browser tabs and returning triggered an unnecessary feed reload/skeleton flash.
+   - Built with stable user session IDs and intelligent token-refresh listeners that bypass redundant profile re-fetches.
+2. **Real-Duration Video Stories:**
+   - Stories dynamically detect video metadata duration (supporting videos of any duration instead of an arbitrary 5-second cutoff).
+   - Audio is preserved and played, with an intuitive sound toggle, volume memory, and autoplay policy handling with an unmute pill.
+   - Restrictive playback prevents unauthorized downloading (`nodownload`, `noremoteplayback`, disabled PiP, and context-menu prevention).
+3. **Custom Glassmorphism Video Player (`VibeVideoPlayer`):**
+   - Replaced default browser video controls with a sleek, themed video player.
+   - Features custom play/pause overlay, scrubbable progress bar with buffered range indicators, elapsed/total time display, volume slider, 0.5x–2x playback speed control, fullscreen toggle, and keyboard shortcuts (`Space`, `M`, `F`).
+4. **Interactive Photo Lightbox (`MediaViewerModal`):**
+   - Seamless expand/full-view experience for photos across the feed, profiles, and chat messages.
+   - Includes pan-and-drag navigation, multi-level zoom (1x to 4x), double-click zoom toggle, Escape key listener, and body scroll locking.
+5. **Zero-Flash System-Wide Dark Mode:**
+   - Centralized `ThemeContext` providing immediate `<head>` inline script theme resolution (`localStorage.getItem('vibehub_theme')`).
+   - Styled with Tailwind CSS v4 `@custom-variant dark` across Feed, Explore, Profile, Messages, Notifications, Settings, Drawers, and Skeletons.
+6. **Zero-Cost Client-Side Stale-While-Revalidate Caching:**
+   - Integrated `@tanstack/react-query` v5 with user-isolated queries (`['feed', userId]`, `['stories', userId]`, `['suggestions', userId]`).
+   - Configured with `staleTime: 60s`, `gcTime: 10m`, and `refetchOnWindowFocus: false`.
+   - Optimistic mutations for likes, bookmarks, and deletions ensure instantaneous UI feedback.
 
 ---
 
-## 🛠️ 3. Tech Stack
+## ✨ 2. Complete Feature Set
+
+- 🔐 **Dual Auth Architecture:**
+  - Native JWT Authentication (`jsonwebtoken` + `bcryptjs`) with protected Express routes.
+  - Supabase Auth integration with seamless Google OAuth support and automatic fallback.
+- 📰 **Social Feed & Content Creation:**
+  - Create rich posts with text, images, and videos.
+  - Custom video playback with glassmorphism controls.
+  - Photo expand lightbox on hover/click.
+  - Instant optimistic likes and saves (bookmarks) without network delay.
+  - Interactive comment drawer and real-time counter updates.
+- ⏱️ **24-Hour Ephemeral Stories:**
+  - Support for image and video stories with creator avatar rings.
+  - Real-duration video playback with native audio and unmute banner.
+  - Auto-advance on video completion or timer expiry.
+  - Download restrictions applied across the story interface.
+- 💬 **Direct Messaging / Chat:**
+  - 1-on-1 private messaging with friends and followed creators.
+  - Image attachments with lightbox view.
+  - Integrated emoji picker with dark mode support.
+  - Optimistic message delivery and unread message counters.
+- 👤 **Customizable User Profiles:**
+  - Profile avatar and cover photo customization with lightbox zoom.
+  - Interactive Follow/Unfollow counters and follower/following modal drawers.
+  - Dedicated tabs for uploaded posts and bookmarked vibes.
+- 🔍 **Live Search & Explore:**
+  - Debounced user search matching usernames and full names.
+  - Trending vibes compiled by engagement.
+- 🔔 **Activity Notifications:**
+  - Notifications for likes, comments, follows, and direct messages.
+  - One-click "Mark all as read" and unread badges.
+- ⚙️ **User Settings:**
+  - Visual Theme Switcher (Light Mode & Dark Mode).
+  - Profile edit drawer for updating bio, website, location, avatar, and cover.
+
+---
+
+## 🛠️ 3. Technology Stack
 
 ### Frontend
-- **Framework:** React 19 (Vite)
-- **Styling:** Tailwind CSS & Modern CSS
+- **Framework:** React 19 (Vite 8)
+- **Styling:** Tailwind CSS v4 & Custom CSS Design Tokens
+- **State & Data Fetching:** `@tanstack/react-query` v5, React Context API
+- **Animations:** Framer Motion 12
 - **Icons:** Lucide React
-- **Animations:** Framer Motion
-- **Routing:** React Router DOM
-- **HTTP Client:** Axios
-- **Interactive Elements:** Emoji Picker React, Three.js
+- **Media Experience:** Custom HTML5 Video Architecture, Canvas Lightbox
+- **3D Graphics:** Three.js (Interactive login background canvas)
+- **Routing:** React Router DOM 7
+- **HTTP Client:** Axios & Supabase JS SDK
 
 ### Backend
-- **Environment:** Node.js (ES Modules)
-- **Framework:** Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **Authentication:** JSON Web Tokens (JWT) & bcryptjs
-- **File Uploads:** Multer with Cloudinary integration
-- **Security & Utilities:** Helmet, Express Rate Limit, Morgan, Compression, CORS
-- **Testing:** Jest, Supertest, In-Memory MongoDB Server
+- **Runtime:** Node.js (ES Modules)
+- **Web Framework:** Express.js 4
+- **Database:** MongoDB via Mongoose ODM 8
+- **Authentication:** JSON Web Tokens (JWT), Bcrypt.js, Supabase Auth Fallback
+- **Media Uploads:** Multer with Cloudinary integration
+- **Security:** Helmet, Express Rate Limit, CORS Whitelisting, Mongo Sanitization
+- **Testing:** Jest, Supertest, In-Memory MongoDB Server (`mongodb-memory-server`)
 
 ---
 
-## 📋 4. Requirements Before Running
+## 📂 4. Repository Structure
 
-Ensure the following tools are installed on your system before proceeding:
-
-1. **Node.js**: `v18.0.0` or higher (LTS recommended) 👉 [Download Node.js](https://nodejs.org/)
-2. **npm**: `v9.0.0` or higher (installed automatically with Node.js)
-3. **MongoDB**:
-   - **Option A (Cloud - Recommended):** Free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account and connection string.
-   - **Option B (Local):** [MongoDB Community Server](https://www.mongodb.com/try/download/community) installed and running locally on `mongodb://localhost:27017`.
-4. **Git**: Installed for version control 👉 [Download Git](https://git-scm.com/)
-5. **Code Editor**: [VS Code](https://code.visualstudio.com/) (recommended)
+```text
+suhel-social-media/
+├── backend/
+│   ├── src/
+│   │   ├── config/             # DB & Cloudinary configs (db.js, cloudinary.js)
+│   │   ├── controllers/        # Route controllers (auth, posts, stories, chat, etc.)
+│   │   ├── middleware/         # Auth verification, upload, error handling, security
+│   │   ├── models/             # Mongoose schemas (User, Post, Story, Message, etc.)
+│   │   ├── routes/             # REST API routes
+│   │   ├── utils/              # Data formatters, serializers, and helpers
+│   │   ├── app.js              # Express app initialization & middleware stack
+│   │   └── server.js           # Server bootstrap & MongoDB connection
+│   ├── tests/                  # Jest test suites (37 automated tests)
+│   └── package.json            # Backend scripts and dependencies
+│
+├── vibehub_frontend/
+│   ├── src/
+│   │   ├── assets/             # Brand logos and graphic assets
+│   │   ├── components/         # Reusable UI components
+│   │   │   ├── VibeVideoPlayer.jsx       # Custom glassmorphism video player
+│   │   │   ├── MediaViewerModal.jsx      # High-res photo lightbox with zoom/pan
+│   │   │   ├── StoryViewerModal.jsx      # Dynamic duration video/photo story player
+│   │   │   ├── PostCard.jsx              # Feed post card with media & optimistic cache
+│   │   │   ├── StoriesBar.jsx            # Stories strip with active user rings
+│   │   │   ├── Sidebar.jsx               # Responsive navigation sidebar
+│   │   │   ├── CreatePostModal.jsx       # Post & Story creator modal
+│   │   │   ├── EditProfileDrawer.jsx     # Profile edit drawer
+│   │   │   ├── FollowersFollowingModal.jsx# Follower/following list modal
+│   │   │   ├── ConfirmationModal.jsx     # Confirmation dialogs
+│   │   │   └── FeedSkeleton.jsx          # Shimmer loading skeleton (Dark & Light)
+│   │   ├── context/            # React Context providers
+│   │   │   ├── AuthContext.jsx           # User session, JWT & Supabase auth state
+│   │   │   ├── ThemeContext.jsx          # Dark / Light mode provider & sync
+│   │   │   └── QueryProvider.jsx         # TanStack Query client & cache mutation helpers
+│   │   ├── pages/              # Application routes
+│   │   │   ├── Feed.jsx                  # Main feed with cached posts & stories
+│   │   │   ├── Explore.jsx               # Discovery and user search
+│   │   │   ├── Profile.jsx               # User profiles with lightbox integration
+│   │   │   ├── Messages.jsx              # Real-time direct messaging interface
+│   │   │   ├── Notifications.jsx         # User notification center
+│   │   │   ├── Settings.jsx              # Settings and visual theme cards
+│   │   │   ├── PostDetail.jsx            # Single post permalink view
+│   │   │   ├── Login.jsx                 # Login with Three.js backdrop
+│   │   │   └── Signup.jsx                # Signup view
+│   │   ├── services/           # Axios API services
+│   │   ├── supabaseClient.js   # Supabase client instance
+│   │   ├── supabaseService.js  # Dual-mode API adapter (REST + Supabase)
+│   │   ├── App.jsx             # Router layout & providers
+│   │   ├── main.jsx            # Entry point
+│   │   └── index.css           # Tailwind v4 variant & theme styling
+│   ├── index.html              # HTML shell with zero-flash theme script
+│   ├── vite.config.js          # Vite config with manual chunk splitting
+│   └── package.json            # Frontend scripts and dependencies
+│
+└── README.md                   # Full application documentation
+```
 
 ---
 
-## 📥 5. Installation Steps (Step-by-Step)
+## 📡 5. Backend REST API Reference
 
-### Step 1: Extract & Open the Project
-1. Download the project zip archive and extract it on your computer.
-2. Open **VS Code**, go to **File > Open Folder...**, and select the project root folder.
+All backend API routes are prefixed with `/api`. Protected routes require a valid `Bearer <token>` in the `Authorization` header.
 
-### Step 2: Open Terminal
-In VS Code, press ``Ctrl + ` `` (Windows) or ``Cmd + ` `` (Mac) to open the integrated terminal.
+### 🔐 Authentication (`/api/auth`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/api/auth/register` | Register a new user account | No |
+| `POST` | `/api/auth/login` | Log in and receive JWT token | No |
+| `GET` | `/api/auth/me` | Fetch authenticated user profile | Yes |
 
-### Step 3: Install Dependencies
-> 💡 *Note: The `node_modules` folder is excluded from the source files to keep the download fast and lightweight. It will be installed automatically by npm.*
+### 📰 Posts (`/api/posts`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/posts/feed` | Get customized chronological feed | Yes |
+| `GET` | `/api/posts/trending` | Get trending posts by engagement | Yes |
+| `GET` | `/api/posts/saved` | Get authenticated user's saved posts | Yes |
+| `GET` | `/api/posts/user/:username` | Get posts created by a specific user | Yes |
+| `GET` | `/api/posts/:id` | Get single post detail by ID | Yes |
+| `POST` | `/api/posts` | Create new post (supports multipart media) | Yes |
+| `PUT` | `/api/posts/:id` | Update post caption | Yes |
+| `DELETE`| `/api/posts/:id` | Delete post and associated media | Yes |
+| `POST` | `/api/posts/:id/like` | Like or unlike a post | Yes |
+| `POST` | `/api/posts/:id/save` | Bookmark or unbookmark a post | Yes |
+| `POST` | `/api/posts/:id/comments` | Add comment to a post | Yes |
+| `DELETE`| `/api/posts/:id/comments/:commentId` | Delete comment from post | Yes |
 
-#### 1. Install Backend Dependencies:
-```bash
-cd backend
-npm install
-```
+### ⏱️ Stories (`/api/stories`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/stories/feed` | Get active 24h stories from followed users | Yes |
+| `GET` | `/api/stories/user/:userId` | Get active stories of a specific user | Yes |
+| `POST` | `/api/stories` | Upload new photo or video story | Yes |
+| `DELETE`| `/api/stories/:id` | Delete a story | Yes |
 
-#### 2. Install Frontend Dependencies:
-```bash
-cd ../vibehub_frontend
-npm install
-```
+### 👤 Users & Profiles (`/api/users`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/users/profile/:username` | Get public profile data | Yes |
+| `PUT` | `/api/users/profile` | Update profile details (bio, website, avatars) | Yes |
+| `POST` | `/api/users/:id/follow` | Follow or unfollow a user | Yes |
+| `GET` | `/api/users/:username/followers` | Get user's followers | Yes |
+| `GET` | `/api/users/:username/following` | Get user's following list | Yes |
+| `GET` | `/api/users/search?q=...` | Search users by query | Yes |
+| `GET` | `/api/users/suggestions` | Get suggested accounts to follow | Yes |
+
+### 💬 Chat & Direct Messaging (`/api/chat`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/chat/conversations` | Get user's conversation threads | Yes |
+| `GET` | `/api/chat/conversations/:id/messages` | Get message history for conversation | Yes |
+| `POST` | `/api/chat/conversations` | Create or fetch conversation with a user | Yes |
+| `POST` | `/api/chat/conversations/:id/messages` | Send direct message (text and/or image) | Yes |
+| `PUT` | `/api/chat/conversations/:id/read` | Mark conversation as read | Yes |
+| `DELETE`| `/api/chat/messages/:id` | Delete a message | Yes |
+
+### 🔔 Notifications (`/api/notifications`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/notifications` | Get user's notifications | Yes |
+| `PUT` | `/api/notifications/read-all` | Mark all notifications as read | Yes |
+| `PUT` | `/api/notifications/:id/read` | Mark individual notification as read | Yes |
 
 ---
 
-## ⚙️ 6. Environment Variables Setup
+## ⚙️ 6. Environment Variables Configuration
 
-For security reasons, `.env` files containing private credentials and API keys are not included in the source package. You need to create your own configuration files.
-
-### 1. Backend Environment Configuration
-Navigate to the `backend/` directory and create a new file named `.env`:
-
-```bash
-# Inside backend/ folder
-# Create a .env file and paste the following:
-```
+### 1. Backend (`backend/.env`)
+Create a `.env` file in the `backend/` directory:
 
 ```env
-# Server Settings
+# Server Port & Environment
 PORT=5000
 NODE_ENV=development
+
+# Frontend Client Address (for CORS whitelist)
 CLIENT_URL=http://localhost:5173
 
-# Database Connection (MongoDB Atlas or Local)
+# MongoDB Connection String (Atlas or Local)
 MONGO_URI=mongodb://localhost:27017/vibehub
-# OR for MongoDB Atlas:
+# Atlas example:
 # MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/vibehub?retryWrites=true&w=majority
 
-# JWT Authentication Secret
-JWT_SECRET=your_super_secret_jwt_key_here_change_in_production
+# JWT Token Secret & Expiration
+JWT_SECRET=super_secret_production_ready_jwt_key_32_chars_long
 JWT_EXPIRE=7d
 
-# Cloudinary Storage (Optional: for cloud image uploads)
+# Cloudinary Storage Credentials (Optional: cloud media hosting)
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
-### 2. Frontend Environment Configuration
-Navigate to the `vibehub_frontend/` directory and create a new file named `.env`:
+### 2. Frontend (`vibehub_frontend/.env`)
+Create a `.env` file in the `vibehub_frontend/` directory:
 
 ```env
-# Backend API Base URL
+# Backend REST API endpoint
 VITE_API_BASE_URL=http://localhost:5000/api
+
+# Supabase Auth & Realtime (Optional fallback)
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ---
 
-## 🚀 7. Running the Project Locally
+## 🚀 7. Running the Application Locally
 
-Run the backend and frontend simultaneously in two separate terminals.
+### Prerequisites
+- **Node.js**: `v18.0.0` or higher (LTS recommended)
+- **MongoDB**: Local MongoDB community service running or MongoDB Atlas connection string
+- **npm**: `v9.0.0` or higher
 
-### Terminal 1: Start Backend Server
+### Step 1: Install Dependencies
+Open your terminal and install dependencies in both folders:
+
+```bash
+# Backend dependencies
+cd backend
+npm install
+
+# Frontend dependencies
+cd ../vibehub_frontend
+npm install
+```
+
+### Step 2: Start the Backend Server
 ```bash
 cd backend
 npm run dev
 ```
-- Server starts at: `http://localhost:5000`
-- Health check endpoint: `http://localhost:5000/health`
+- The Express server starts on **`http://localhost:5000`**.
+- Health check route: `http://localhost:5000/health`.
 
-### Terminal 2: Start Frontend Client
+### Step 3: Start the Frontend Client
+In a separate terminal window:
 ```bash
 cd vibehub_frontend
 npm run dev
 ```
-- Client application runs at: `http://localhost:5173`
-
-Open your web browser and navigate to **`http://localhost:5173`** to access VibeHub!
+- Vite starts the dev server at **`http://localhost:5173`**.
+- Open `http://localhost:5173` in your browser to experience VibeHub!
 
 ---
 
-## 📦 8. Build Instructions (Production)
+## 🧪 8. Automated Testing
 
-When you are ready to prepare the frontend for production deployment:
+The backend includes a comprehensive test suite executed with Jest and Supertest against an isolated in-memory MongoDB server:
 
+```bash
+cd backend
+npm test
+```
+
+Test coverage includes:
+- Authentication & JWT validation (`auth.test.js`, `authMiddleware.test.js`)
+- Posts, likes, comments, bookmarks, and pagination (`posts.test.js`)
+- 24-hour Stories lifecycle (`stories.test.js`)
+- User profiles and follow dynamics (`users.test.js`)
+- Direct messaging & conversations (`chat.test.js`)
+- Notifications dispatch and read state (`notifications.test.js`)
+- Security middleware and rate limiting (`security.test.js`)
+- Global error handling and formatting (`errorHandler.test.js`)
+
+---
+
+## 📦 9. Production Build & Deployment
+
+### 1. Build the Frontend Bundle
 ```bash
 cd vibehub_frontend
 npm run build
 ```
+Vite outputs minified, tree-shaken chunks into `vibehub_frontend/dist/`.
 
-- This command will compile and bundle your React application into the `vibehub_frontend/dist/` directory.
-- The `dist/` folder contains minified HTML, CSS, and JavaScript ready to be hosted on any static hosting provider.
-- You can preview your production build locally with:
-  ```bash
-  npm run preview
-  ```
+### 2. Frontend Deployment (Vercel / Netlify)
+- **Root Directory:** `vibehub_frontend`
+- **Framework Preset:** `Vite`
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+- **Environment Variable:** `VITE_API_BASE_URL` pointing to your deployed backend (e.g. `https://api.vibehub.example.com/api`).
 
----
-
-## 🎨 9. Customization & Editing Guide
-
-This codebase is clean and modular, making it effortless to customize:
-
-| What to Customize | File / Location | Description |
-| :--- | :--- | :--- |
-| **API Keys & Database** | `backend/.env` & `vibehub_frontend/.env` | Update your database connection string, JWT secrets, and port numbers. |
-| **App Branding & Logo** | `vibehub_frontend/src/components/Sidebar.jsx` & `index.html` | Change the application name, logo, page title, and meta descriptions. |
-| **Theme Colors & Styles** | `vibehub_frontend/src/index.css` | Customize color palettes, glassmorphism filters, gradients, and font families. |
-| **Static Images & Icons** | `vibehub_frontend/src/assets/` or `public/` | Replace default avatars, placeholders, favicons, and branding assets. |
-| **UI Texts & Pages** | `vibehub_frontend/src/pages/` | Edit page texts, layouts, and copy for Feed, Profile, Chat, Notifications, etc. |
-| **API Routes & Models** | `backend/src/controllers/` & `backend/src/models/` | Add custom fields to User, Post, Comment, or Story schemas and extend business logic. |
+### 3. Backend Deployment (Render / Railway / Fly.io)
+- **Root Directory:** `backend`
+- **Build Command:** `npm install`
+- **Start Command:** `node src/server.js`
+- **Environment Variables:** Set `NODE_ENV=production`, `PORT=5000`, `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL` (your frontend domain), and Cloudinary keys.
 
 ---
 
-## 📂 10. Folder Structure Overview
+## 🔧 10. Troubleshooting & FAQ
 
-```text
-├── backend/                       # Express & Node.js Backend
-│   ├── scripts/                   # Database seed and migration scripts
-│   ├── src/
-│   │   ├── config/                # MongoDB and Cloudinary configurations
-│   │   ├── controllers/           # Business logic (auth, user, post, story, chat, etc.)
-│   │   ├── middleware/            # Auth guard, error handlers, upload middleware
-│   │   ├── models/                # Mongoose database models (User, Post, Story, etc.)
-│   │   ├── routes/                # Express API route endpoints
-│   │   ├── utils/                 # Helper utilities and serializers
-│   │   └── server.js              # Application entry point
-│   ├── tests/                     # Automated Jest and Supertest test suites
-│   └── package.json               # Backend dependencies and scripts
-│
-├── vibehub_frontend/              # React 19 + Vite Frontend
-│   ├── public/                    # Static assets & favicon
-│   ├── src/
-│   │   ├── assets/                # Images, icons, and illustrations
-│   │   ├── components/            # Reusable UI components (Sidebar, PostCard, Modal, etc.)
-│   │   ├── context/               # Global state providers (Auth, Theme)
-│   │   ├── pages/                 # Application views (Feed, Profile, Chat, Notifications)
-│   │   ├── services/              # Axios API clients and helper services
-│   │   ├── App.jsx                # Route declarations and root layout
-│   │   ├── main.jsx               # React DOM entry point
-│   │   └── index.css              # Global styles & Tailwind configuration
-│   ├── index.html                 # HTML template
-│   ├── vite.config.js             # Vite configuration
-│   └── package.json               # Frontend dependencies and scripts
-│
-└── README.md                      # Project documentation
-```
+### Q: Why don't feeds reload when I leave and come back to the tab?
+**A:** This is intentional. VibeHub uses TanStack Query caching (`staleTime: 60s`, `refetchOnWindowFocus: false`) and stable user references in `AuthContext` to prevent disruptive background refetches and skeleton flashes.
+
+### Q: How do Story videos play their full duration?
+**A:** `StoryViewerModal` inspects the media's `onLoadedMetadata` event to extract the exact floating-point video duration and syncs the progress bar to `timeupdate` events, advancing cleanly when the video ends (`onEnded`).
+
+### Q: How is audio handled in Stories?
+**A:** Story videos preserve original audio tracks. If browser autoplay restrictions mute the video upon entry, a user-friendly "Tap to Unmute" pill badge appears, respecting the user's audio preference (`vibehub_story_muted`).
+
+### Q: Why can't users download videos directly from the UI?
+**A:** All video elements feature `controlsList="nodownload nofullscreen noremoteplayback"`, `disablePictureInPicture`, and context-menu prevention (`onContextMenu={(e) => e.preventDefault()}`) to keep the media experience native and secure.
 
 ---
 
-## 🌐 11. Deployment Guide
-
-### 1. Database Deployment (MongoDB Atlas)
-1. Log in to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) and create a free Shared Cluster.
-2. In **Database Access**, create a user with read and write privileges.
-3. In **Network Access**, add `0.0.0.0/0` (allow access from anywhere) to allow your cloud server to connect.
-4. Click **Connect > Drivers**, copy the connection string, and set it as `MONGO_URI`.
-
-### 2. Backend Deployment (Render / Railway)
-1. Push your code to a GitHub repository.
-2. Log in to [Render](https://render.com) or [Railway](https://railway.app) and create a new **Web Service**.
-3. Select your repository and set the root directory to `backend`.
-4. Build command: `npm install`
-5. Start command: `node src/server.js`
-6. Add your Environment Variables (`MONGO_URI`, `JWT_SECRET`, `CLIENT_URL`, etc.) in the dashboard settings.
-
-### 3. Frontend Deployment (Vercel / Netlify)
-1. Log in to [Vercel](https://vercel.com) or [Netlify](https://netlify.com) and import your repository.
-2. Set the Root Directory to `vibehub_frontend`.
-3. Framework Preset: **Vite**
-4. Build command: `npm run build`
-5. Output directory: `dist`
-6. Under Environment Variables, add `VITE_API_BASE_URL` pointing to your deployed backend URL (e.g., `https://your-backend.onrender.com/api`).
-7. Deploy!
-
----
-
-## 🔧 12. Troubleshooting Section
-
-### ❌ Issue 1: `npm install` fails with dependency errors
-- **Solution:** Clear your npm cache and retry using legacy peer dependency resolution:
-  ```bash
-  npm cache clean --force
-  npm install --legacy-peer-deps
-  ```
-
-### ❌ Issue 2: `Error: listen EADDRINUSE: address already in use :::5000`
-- **Solution:** Port 5000 is occupied by another application. You can either close that application or change the port in `backend/.env`:
-  ```env
-  PORT=5001
-  ```
-  *(Remember to update `VITE_API_BASE_URL` in the frontend `.env` to match!)*
-
-### ❌ Issue 3: MongoDB connection failure (`MongooseServerSelectionError`)
-- **Solution:**
-  - If using local MongoDB, ensure MongoDB service is active.
-  - If using MongoDB Atlas, check that your current IP is whitelisted under **Network Access** (`0.0.0.0/0`).
-  - Check that your database username and password in `MONGO_URI` are correct and special characters are URL-encoded.
-
-### ❌ Issue 4: CORS errors in browser console
-- **Solution:** Ensure `CLIENT_URL` in `backend/.env` strictly matches your frontend address (default: `http://localhost:5173`).
-
----
-
-## ⚠️ 13. Important Security & Usage Notice
-
-- 🔒 **No Secrets Included:** For security and distribution integrity, secret API keys, credentials, and `node_modules` folders are **not** bundled in this source code package.
-- 🔑 **Configuration Required:** You must create your `.env` files and supply your own MongoDB connection string and JWT secret before running the project.
-
----
-
-## 💬 14. Contact & Support
-
-Thank you for downloading/purchasing this project! If you need assistance, find a bug, or want custom features built:
-
-- 📧 **Support Email:** `your-email@example.com`
-- 🌐 **Website / Portfolio:** `https://yourwebsite.com`
-- 💬 **Discord / Telegram:** `@yourusername`
-
----
-⭐ *If you love this project, please consider giving it a star on GitHub or a 5-star review on the marketplace!*
+## 📄 License
+This project is licensed under the MIT License.

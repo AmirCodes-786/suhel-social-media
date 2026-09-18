@@ -9,9 +9,12 @@ import ConfirmationModal from '../components/ConfirmationModal'
 import EmojiPicker from 'emoji-picker-react'
 import PageTransition from '../components/PageTransition'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTheme } from '../context/ThemeContext'
+import MediaViewerModal from '../components/MediaViewerModal'
 
 const Messages = () => {
   const { user, isDevMode } = useAuth()
+  const { theme } = useTheme()
   const navigate = useNavigate()
   const [conversations, setConversations] = useState([])
   const [activeConversation, setActiveConversation] = useState(null)
@@ -19,6 +22,7 @@ const Messages = () => {
   const [inputText, setInputText] = useState('')
   const [mediaFile, setMediaFile] = useState(null)
   const [mediaPreview, setMediaPreview] = useState(null)
+  const [viewerMedia, setViewerMedia] = useState(null)
   const [loadingConv, setLoadingConv] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
@@ -377,25 +381,25 @@ const Messages = () => {
   })
 
   return (
-    <div className="h-[100dvh] w-screen bg-slate-50 text-slate-900 font-outfit flex flex-col overflow-hidden relative">
+    <div className="h-[100dvh] w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit flex flex-col overflow-hidden relative">
       
       {/* Top Header Bar */}
-      <header className={`fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
+      <header className={`fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2">
-          <Activity className="h-6 w-6 text-indigo-600 animate-pulse" />
-          <span className="text-xl font-bold tracking-tight text-slate-950">VibeHub</span>
+          <Activity className="h-6 w-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+          <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">VibeHub</span>
         </Link>
 
         {/* Center: Search */}
         <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center relative w-96">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search vibe..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-transparent rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-200 transition-all"
+            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
           />
         </form>
 
@@ -403,7 +407,7 @@ const Messages = () => {
         <div className="flex items-center gap-3">
           <Link
             to="/settings"
-            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
+            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all cursor-pointer"
             title="Settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -411,7 +415,7 @@ const Messages = () => {
 
           <Link
             to="/"
-            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all"
+            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all"
           >
             <Plus className="h-5 w-5" />
           </Link>
@@ -420,7 +424,7 @@ const Messages = () => {
             <img
               src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
               alt={user?.username}
-              className="h-9 w-9 rounded-full object-cover border border-slate-200 hover:border-indigo-500 transition-colors"
+              className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors"
             />
           </Link>
         </div>
@@ -437,24 +441,24 @@ const Messages = () => {
         <div className="flex-1 flex overflow-hidden">
           
           {/* Left Side: Conversations Sidebar */}
-          <div className={`w-full md:w-80 border-r border-slate-100 bg-white flex flex-col shrink-0 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`w-full md:w-80 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-6 pb-4 flex flex-col text-left space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-900">Messages</h3>
-                <button className="text-slate-400 hover:text-slate-600 p-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Messages</h3>
+                <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
                   <MoreVertical className="h-4.5 w-4.5" />
                 </button>
               </div>
 
               {/* Conversation Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search conversations..."
                   value={convSearchQuery}
                   onChange={(e) => setConvSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border border-transparent rounded-full py-1.5 pl-9 pr-4 text-[11px] text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-200 transition-all"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-1.5 pl-9 pr-4 text-[11px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
                 />
               </div>
             </div>
@@ -463,7 +467,7 @@ const Messages = () => {
               {/* Direct Message Friends Horizontal Scroll */}
               {friends.length > 0 && (
                 <div className="px-2 mb-4 text-left">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2.5">
                     Direct Message Friends
                   </span>
                   <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
@@ -479,15 +483,15 @@ const Messages = () => {
                             alt={friend.username}
                             className="h-11 w-11 rounded-full object-cover border-2 border-transparent group-hover:border-indigo-500 transition-all shadow-sm"
                           />
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                         </div>
-                        <span className="text-[9px] font-medium text-slate-500 group-hover:text-indigo-600 truncate max-w-[55px] transition-colors leading-none">
+                        <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate max-w-[55px] transition-colors leading-none">
                           @{friend.username}
                         </span>
                       </button>
                     ))}
                   </div>
-                  <div className="border-b border-slate-100/80 my-2"></div>
+                  <div className="border-b border-slate-100/80 dark:border-slate-800 my-2"></div>
                 </div>
               )}
 
@@ -496,10 +500,10 @@ const Messages = () => {
                   <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
                 </div>
               ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-10 px-4 text-xs text-slate-400 font-light space-y-2 text-left">
+                <div className="text-center py-10 px-4 text-xs text-slate-400 dark:text-slate-500 font-light space-y-2 text-left">
                   <p>No conversations yet.</p>
                   {friends.length === 0 && (
-                    <p className="text-[10px] text-slate-400/85">Explore profiles and follow creators to start a chat!</p>
+                    <p className="text-[10px] text-slate-400/85 dark:text-slate-500">Explore profiles and follow creators to start a chat!</p>
                   )}
                 </div>
               ) : (
@@ -513,28 +517,28 @@ const Messages = () => {
                       onClick={() => setActiveConversation(conv)}
                       className={`flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border ${
                         isSelected 
-                          ? 'bg-indigo-50 border-transparent text-indigo-900 font-semibold' 
-                          : 'bg-transparent border-transparent hover:bg-slate-50 text-slate-600'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/50 border-transparent text-indigo-900 dark:text-indigo-200 font-semibold' 
+                          : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-300'
                       }`}
                     >
                       <div className="relative shrink-0">
                         <img
                           src={partner?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                           alt={partner?.username}
-                          className="h-10 w-10 rounded-full border border-slate-100 object-cover"
+                          className="h-10 w-10 rounded-full border border-slate-100 dark:border-slate-800 object-cover"
                         />
-                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                       </div>
                       <div className="flex-1 min-w-0 text-left">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="text-xs font-bold truncate leading-tight">
+                          <span className="text-xs font-bold truncate leading-tight text-slate-800 dark:text-slate-100">
                             {partner?.username}
                           </span>
-                          <span className="text-[8px] text-slate-400 font-light">
+                          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-light">
                             {conv.last_message ? new Date(conv.last_message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 truncate leading-snug">
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
                           {conv.last_message?.content || (conv.last_message?.media ? 'Sent a photo' : 'No messages')}
                         </p>
                       </div>
@@ -552,15 +556,15 @@ const Messages = () => {
           </div>
 
           {/* Right Side: Chat Window */}
-          <div className={`flex-1 flex flex-col bg-slate-50 ${!activeConversation ? 'hidden md:flex justify-center items-center text-slate-400' : 'flex'}`}>
+          <div className={`flex-1 flex flex-col bg-slate-50 dark:bg-slate-950 ${!activeConversation ? 'hidden md:flex justify-center items-center text-slate-400 dark:text-slate-500' : 'flex'}`}>
             {activeConversation ? (
               <>
                 {/* Chat Partner Header */}
-                <div className="h-16 border-b border-slate-100 bg-white flex items-center justify-between px-6 shrink-0 z-10">
+                <div className="h-16 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0 z-10">
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setActiveConversation(null)}
-                      className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 mr-1"
+                      className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 mr-1"
                     >
                       <ArrowLeft className="h-4.5 w-4.5" />
                     </button>
@@ -568,35 +572,35 @@ const Messages = () => {
                       <img
                         src={getChatPartner(activeConversation)?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                         alt="Partner"
-                        className="h-9 w-9 rounded-full border border-slate-100 object-cover"
+                        className="h-9 w-9 rounded-full border border-slate-100 dark:border-slate-800 object-cover"
                       />
-                      <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-white"></span>
+                      <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-slate-900"></span>
                     </div>
                     <div className="flex flex-col text-left">
-                      <span className="text-xs font-bold text-slate-800 leading-snug">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
                         {getChatPartner(activeConversation)?.username}
                       </span>
-                      <span className="text-[9px] text-slate-400 font-light">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-light">
                         Online
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 text-slate-400">
-                    <button className="p-2 rounded-lg hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3 text-slate-400 dark:text-slate-500">
+                    <button className="p-2 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <Phone className="h-4 w-4" />
                     </button>
-                    <button className="p-2 rounded-lg hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                    <button className="p-2 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <Video className="h-4 w-4" />
                     </button>
                     <button 
                       onClick={handleClearChat}
-                      className="p-2 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50/50 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                       title="Clear Chat"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <button className="p-2 rounded-lg hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                    <button className="p-2 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <MoreVertical className="h-4 w-4" />
                     </button>
                   </div>
@@ -605,7 +609,7 @@ const Messages = () => {
                 {/* Message Feed Area */}
                 <div 
                   ref={messagesContainerRef} 
-                  className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 no-scrollbar relative cursor-text"
+                  className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 no-scrollbar relative cursor-text"
                   onClick={(e) => {
                     // Only focus if they aren't selecting text or clicking a button/link
                     const selection = window.getSelection()
@@ -619,15 +623,15 @@ const Messages = () => {
                       <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center h-full text-slate-400 text-xs">
-                      <MessageSquare className="h-8 w-8 text-slate-300 mb-2" />
+                    <div className="flex flex-col justify-center items-center h-full text-slate-400 dark:text-slate-500 text-xs">
+                      <MessageSquare className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
                       <span>No messages yet. Say hi!</span>
                     </div>
                   ) : (
                     <>
                       {/* Optional Date Separator */}
-                      <div className="text-[10px] text-slate-400 font-bold tracking-wider uppercase py-2">
-                        Monday, October 23rd
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold tracking-wider uppercase py-2">
+                        Chat History
                       </div>
                       
                       {messages.map((msg) => {
@@ -645,7 +649,7 @@ const Messages = () => {
                             {isMe && !msg.isOptimistic && (
                               <button
                                 onClick={() => handleDeleteMessage(msg.id)}
-                                className="self-center opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                className="self-center opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
                                 title="Delete Message"
                               >
                                 <Trash className="h-3.5 w-3.5" />
@@ -655,21 +659,27 @@ const Messages = () => {
                               <img
                                 src={msg.sender_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                                 alt="Sender"
-                                className="h-8 w-8 rounded-full border border-slate-100 object-cover self-end shrink-0"
+                                className="h-8 w-8 rounded-full border border-slate-100 dark:border-slate-800 object-cover self-end shrink-0"
                               />
                             )}
                             <div className={`flex flex-col max-w-[70%] transition-opacity ${msg.isOptimistic ? 'opacity-70' : 'opacity-100'} ${msg.failed ? 'opacity-90' : ''}`}>
                               <div className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
                                 isMe 
                                   ? (msg.failed ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white') + ' rounded-br-none shadow-sm'
-                                  : 'bg-[#f3f4f6] text-slate-800 rounded-bl-none'
+                                  : 'bg-[#f3f4f6] dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none'
                               }`}>
                                 {msg.content && <p className="whitespace-pre-line">{msg.content}</p>}
                                 {msg.media && (
-                                  <img src={msg.media} alt="Message attachment" className="mt-2 rounded-lg max-h-[200px] object-cover" />
+                                  <img 
+                                    src={msg.media} 
+                                    alt="Message attachment" 
+                                    onClick={() => setViewerMedia({ url: msg.media, alt: 'Chat attachment', title: 'Attached Image' })}
+                                    className="mt-2 rounded-lg max-h-[200px] object-cover cursor-pointer hover:opacity-95 transition-opacity" 
+                                    title="Click to view full photo"
+                                  />
                                 )}
                               </div>
-                              <div className={`flex items-center gap-1 mt-1 text-[8px] text-slate-400 font-light ${isMe ? 'self-end' : 'self-start'}`}>
+                              <div className={`flex items-center gap-1 mt-1 text-[8px] text-slate-400 dark:text-slate-500 font-light ${isMe ? 'self-end' : 'self-start'}`}>
                                 <span>{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 {isMe && !msg.isOptimistic && !msg.failed && (
                                   <svg className="h-3 w-3 text-indigo-500 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -688,14 +698,14 @@ const Messages = () => {
                 </div>
 
                 {/* Chat Input Container */}
-                <div className="p-4 border-t border-slate-100 bg-white flex flex-col shrink-0 relative">
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 relative">
                   {mediaPreview && (
-                    <div className="absolute bottom-20 left-4 bg-white border border-slate-100 p-2.5 rounded-2xl flex items-center gap-2 shadow-lg">
+                    <div className="absolute bottom-20 left-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2.5 rounded-2xl flex items-center gap-2 shadow-lg">
                       <img src={mediaPreview} alt="Attached upload preview" className="h-12 w-12 rounded-xl object-cover" />
                       <button 
                         type="button" 
                         onClick={() => { setMediaFile(null); setMediaPreview(null); }}
-                        className="text-slate-400 hover:text-slate-800 text-xs font-bold px-1"
+                        className="text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-bold px-1"
                       >
                         Remove
                       </button>
@@ -703,15 +713,15 @@ const Messages = () => {
                   )}
 
                   {/* Input Form Bar */}
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-3 relative bg-slate-50 border border-slate-200/50 rounded-2xl px-4 py-2">
+                  <form onSubmit={handleSendMessage} className="flex items-center gap-3 relative bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-2xl px-4 py-2">
                     
                     {/* Attachments (Photo only) */}
-                    <div className="flex items-center text-slate-400">
+                    <div className="flex items-center text-slate-400 dark:text-slate-500">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={sending}
-                        className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
+                        className="p-1.5 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
                         title="Upload Photo"
                       >
                         <input
@@ -744,16 +754,16 @@ const Messages = () => {
                       disabled={sending}
                       rows={1}
                       style={{ resize: 'none' }}
-                      className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 placeholder-slate-400 min-h-[32px] max-h-[120px] overflow-y-auto no-scrollbar"
+                      className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 min-h-[32px] max-h-[120px] overflow-y-auto no-scrollbar"
                     />
 
                     {/* Emoji and Send */}
-                    <div className="flex items-center gap-1.5 text-slate-400 relative">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 relative">
                       <div className="relative">
                         <button
                           type="button"
                           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-slate-200/50 transition-colors"
+                          className="p-1.5 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
                         >
                           <Smile className="h-4.5 w-4.5" />
                         </button>
@@ -763,6 +773,7 @@ const Messages = () => {
                             <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)}></div>
                             <div className="relative z-50">
                               <EmojiPicker 
+                                theme={theme === 'dark' ? 'dark' : 'light'}
                                 onEmojiClick={(emojiData) => {
                                   setInputText(prev => prev + emojiData.emoji)
                                 }}
@@ -787,18 +798,18 @@ const Messages = () => {
                   </form>
 
                   {/* Secure Chat Footer */}
-                  <span className="text-[8px] font-bold text-slate-300 tracking-wider text-center uppercase mt-3">
+                  <span className="text-[8px] font-bold text-slate-300 dark:text-slate-600 tracking-wider text-center uppercase mt-3">
                     End-to-End Encrypted • Vibe Safely
                   </span>
                 </div>
               </>
             ) : (
               <div className="flex flex-col items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-400 shadow-sm mb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 shadow-sm mb-4">
                   <MessageSquare className="h-6 w-6" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-700">Select a chat</h3>
-                <p className="text-xs text-slate-400 mt-1">Pick a conversation from the left to start vibes</p>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Select a chat</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Pick a conversation from the left to start vibes</p>
               </div>
             )}
           </div>
@@ -826,6 +837,15 @@ const Messages = () => {
         confirmText="Clear Chat"
         cancelText="Cancel"
         isDestructive={true}
+      />
+
+      {/* Lightbox Media Viewer Modal for Message Photos */}
+      <MediaViewerModal
+        isOpen={Boolean(viewerMedia)}
+        onClose={() => setViewerMedia(null)}
+        mediaUrl={viewerMedia?.url}
+        mediaAlt={viewerMedia?.alt}
+        title={viewerMedia?.title}
       />
     </div>
   )

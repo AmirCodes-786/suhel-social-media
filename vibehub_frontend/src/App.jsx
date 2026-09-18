@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { AuthProvider } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
+import { QueryProvider } from './context/QueryProvider'
 import ProtectedRoute from './components/ProtectedRoute'
 import { Activity } from 'lucide-react'
 
@@ -17,12 +19,12 @@ const PostDetail = lazy(() => import('./pages/PostDetail'))
 const Settings = lazy(() => import('./pages/Settings'))
 
 const RouteFallback = () => (
-  <div className="min-h-screen w-screen bg-slate-50 flex items-center justify-center font-outfit">
+  <div className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center font-outfit">
     <div className="flex flex-col items-center gap-3">
       <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20 animate-pulse">
         <Activity className="h-5 w-5 text-white" />
       </div>
-      <span className="text-xs font-semibold text-slate-500 tracking-wide animate-pulse">
+      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide animate-pulse">
         Loading VibeHub...
       </span>
     </div>
@@ -56,13 +58,17 @@ const AnimatedRoutes = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Suspense fallback={<RouteFallback />}>
-          <AnimatedRoutes />
-        </Suspense>
-      </Router>
-    </AuthProvider>
+    <QueryProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router>
+            <Suspense fallback={<RouteFallback />}>
+              <AnimatedRoutes />
+            </Suspense>
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryProvider>
   )
 }
 

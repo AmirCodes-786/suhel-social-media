@@ -40,17 +40,17 @@ const FollowersFollowingModal = ({ isOpen, onClose, type, username }) => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white border border-slate-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh] font-outfit text-left"
+          className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh] font-outfit text-left"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
-            <h3 className="text-sm font-bold text-slate-900 capitalize flex items-center gap-2">
-              <Users className="h-4 w-4 text-indigo-600" />
+          <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white capitalize flex items-center gap-2">
+              <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               <span>{type === 'followers' ? 'Followers' : 'Following'}</span>
             </h3>
             <button 
               onClick={onClose} 
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -65,7 +65,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, type, username }) => {
               </div>
             ) : users.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-center">
-                <Users className="h-8 w-8 text-slate-200 mb-2.5" />
+                <Users className="h-8 w-8 text-slate-200 dark:text-slate-700 mb-2.5" />
                 <span className="text-xs font-light">No users found.</span>
               </div>
             ) : (
@@ -75,18 +75,18 @@ const FollowersFollowingModal = ({ isOpen, onClose, type, username }) => {
                     key={item.id}
                     to={`/profile/${item.username}`}
                     onClick={onClose}
-                    className="flex items-center gap-3 p-2 hover:bg-slate-50 border border-transparent hover:border-slate-100/50 rounded-2xl transition-all group"
+                    className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent hover:border-slate-100/50 dark:hover:border-slate-700/50 rounded-2xl transition-all group"
                   >
                     <img
                       src={item.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                       alt={item.username}
-                      className="h-10 w-10 rounded-full border border-slate-100 object-cover"
+                      className="h-10 w-10 rounded-full border border-slate-100 dark:border-slate-800 object-cover"
                     />
                     <div className="flex-1 min-w-0 flex flex-col text-left">
-                      <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
                         {item.first_name ? `${item.first_name} ${item.last_name || ''}` : item.username}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-light truncate">@{item.username}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-light truncate">@{item.username}</span>
                     </div>
                   </Link>
                 ))}

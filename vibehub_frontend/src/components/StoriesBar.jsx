@@ -9,7 +9,7 @@ const StoriesBar = ({ groupedStories = [], onStoryClick, onAddStoryClick }) => {
   const hasOwnStory = currentUserStoriesGroup && currentUserStoriesGroup.stories.length > 0
 
   return (
-    <div className="flex gap-4.5 p-4 bg-white border border-slate-100 rounded-2xl overflow-x-auto no-scrollbar shadow-sm mb-6 font-outfit">
+    <div className="flex gap-4.5 p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto no-scrollbar shadow-sm mb-6 font-outfit transition-colors">
       {/* Create Story Button / Own Story */}
       <div 
         className="flex flex-col items-center shrink-0 cursor-pointer group" 
@@ -28,24 +28,24 @@ const StoriesBar = ({ groupedStories = [], onStoryClick, onAddStoryClick }) => {
               ? 'bg-gradient-to-tr from-emerald-400 via-green-500 to-emerald-600' 
               : 'bg-transparent'
           }`}>
-            <div className={`rounded-full ${hasOwnStory ? 'bg-white p-[1.5px]' : ''}`}>
+            <div className={`rounded-full ${hasOwnStory ? 'bg-white dark:bg-slate-900 p-[1.5px]' : ''}`}>
               <img
                 src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                 alt="Your profile"
                 className={`rounded-full border object-cover ${
                   hasOwnStory 
                     ? 'h-[42px] w-[42px] border-transparent' 
-                    : 'h-12 w-12 border-slate-200'
+                    : 'h-12 w-12 border-slate-200 dark:border-slate-700'
                 }`}
               />
             </div>
           </div>
           {/* Plus badge overlay */}
-          <div className="absolute bottom-0 right-0 h-4.5 w-4.5 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center text-white group-hover:bg-indigo-700 transition-colors">
+          <div className="absolute bottom-0 right-0 h-4.5 w-4.5 rounded-full bg-indigo-600 border-2 border-white dark:border-slate-900 flex items-center justify-center text-white group-hover:bg-indigo-700 transition-colors">
             <Plus className="h-2.5 w-2.5 stroke-[3px]" />
           </div>
         </div>
-        <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-700 transition-colors">
+        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
           Your Story
         </span>
       </div>
@@ -64,10 +64,10 @@ const StoriesBar = ({ groupedStories = [], onStoryClick, onAddStoryClick }) => {
           >
             <div className={`p-[2px] rounded-full mb-1 transition-transform group-hover:scale-105 ${
               allViewed 
-                ? 'bg-slate-200' 
+                ? 'bg-slate-200 dark:bg-slate-700' 
                 : 'bg-gradient-to-tr from-emerald-400 via-green-500 to-emerald-600'
             }`}>
-              <div className="bg-white p-[1.5px] rounded-full">
+              <div className="bg-white dark:bg-slate-900 p-[1.5px] rounded-full">
                 <img
                   src={group.user.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                   alt={group.user.username}
@@ -75,7 +75,7 @@ const StoriesBar = ({ groupedStories = [], onStoryClick, onAddStoryClick }) => {
                 />
               </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-700 transition-colors max-w-[60px] truncate">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors max-w-[60px] truncate">
               {group.user.username}
             </span>
           </div>

@@ -97,15 +97,15 @@ const EditProfileDrawer = ({ isOpen, onClose, onProfileUpdated }) => {
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="relative bg-white border-l border-slate-100 w-full max-w-md h-full shadow-2xl flex flex-col z-10 font-outfit text-left"
+          className="relative bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 w-full max-w-md h-full shadow-2xl flex flex-col z-10 font-outfit text-left text-slate-900 dark:text-slate-100"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0 bg-white">
-            <h3 className="text-base font-bold text-slate-900">Edit Profile</h3>
+          <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Profile</h3>
             <button 
               onClick={onClose} 
               disabled={uploading}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               <X className="h-4.5 w-4.5" />
             </button>
@@ -118,7 +118,7 @@ const EditProfileDrawer = ({ isOpen, onClose, onProfileUpdated }) => {
               {/* Cover Picture */}
               <div 
                 onClick={() => coverInputRef.current?.click()}
-                className="relative h-32 w-full rounded-2xl bg-slate-100 overflow-hidden cursor-pointer border border-slate-200 hover:border-indigo-500/50 group transition-all"
+                className="relative h-32 w-full rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 group transition-all"
               >
                 <input 
                   type="file" 
@@ -144,7 +144,7 @@ const EditProfileDrawer = ({ isOpen, onClose, onProfileUpdated }) => {
               <div className="relative -mt-14 ml-4 h-20 w-20 shrink-0 z-10">
                 <div 
                   onClick={() => avatarInputRef.current?.click()}
-                  className="relative h-20 w-20 rounded-full bg-slate-100 overflow-hidden cursor-pointer border-2 border-white hover:border-indigo-600 group transition-all shadow-sm"
+                  className="relative h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden cursor-pointer border-2 border-white dark:border-slate-900 hover:border-indigo-600 group transition-all shadow-sm"
                 >
                   <input 
                     type="file" 
@@ -170,79 +170,79 @@ const EditProfileDrawer = ({ isOpen, onClose, onProfileUpdated }) => {
             {/* General Fields */}
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Username</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Username</label>
                 <input
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={uploading}
-                  className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">First Name</label>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">First Name</label>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     disabled={uploading}
-                    className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Last Name</label>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Last Name</label>
                   <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     disabled={uploading}
-                    className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Bio</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Bio</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   disabled={uploading}
                   rows={3}
                   maxLength={500}
-                  className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Website</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Website</label>
                 <input
                   type="url"
                   placeholder="https://example.com"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   disabled={uploading}
-                  className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Location</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Location</label>
                 <input
                   type="text"
                   placeholder="New York, USA"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   disabled={uploading}
-                  className="w-full bg-slate-50 border border-slate-200/50 rounded-xl py-3 px-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-xl py-3 px-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                 />
               </div>
             </div>
 
             {/* Save Button */}
-            <div className="pt-4 border-t border-slate-100 shrink-0">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
               <button
                 type="submit"
                 disabled={uploading}

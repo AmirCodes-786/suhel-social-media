@@ -69,19 +69,19 @@ const PostDetail = () => {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
+    <div className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit pb-16 md:pb-0 flex flex-col">
       
       {/* Top Header Bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 z-40">
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2">
-          <Activity className="h-6 w-6 text-indigo-600 animate-pulse" />
-          <span className="text-xl font-bold tracking-tight text-slate-950">VibeHub</span>
+          <Activity className="h-6 w-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+          <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">VibeHub</span>
         </Link>
 
         {/* Center: Search */}
         <form onSubmit={handleHeaderSearchSubmit} className="hidden md:flex items-center relative w-96">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -89,7 +89,7 @@ const PostDetail = () => {
             placeholder="Search vibe..."
             value={headerSearchQuery}
             onChange={(e) => setHeaderSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-transparent rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-200 transition-all"
+            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
           />
         </form>
 
@@ -97,7 +97,7 @@ const PostDetail = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
+            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all cursor-pointer"
             title="Create Post"
           >
             <Plus className="h-5 w-5" />
@@ -107,7 +107,7 @@ const PostDetail = () => {
             <img
               src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
               alt={user?.username}
-              className="h-9 w-9 rounded-full object-cover border border-slate-200 hover:border-indigo-500 transition-colors"
+              className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors"
             />
           </Link>
         </div>
@@ -126,12 +126,12 @@ const PostDetail = () => {
           <div className="flex items-center gap-3.5 mb-6 text-left shrink-0">
             <button 
               onClick={() => navigate(-1)} 
-              className="flex items-center justify-center h-9 w-9 rounded-xl bg-white border border-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 transition-all cursor-pointer shadow-sm"
+              className="flex items-center justify-center h-9 w-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shadow-sm"
               title="Go Back"
             >
               <ArrowLeft className="h-4.5 w-4.5" />
             </button>
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
               Vibe Detail
             </h3>
           </div>
@@ -143,10 +143,10 @@ const PostDetail = () => {
               <span className="text-xs">Fetching vibe details...</span>
             </div>
           ) : !post ? (
-            <div className="text-center py-20 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+            <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
               <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-3" />
-              <h4 className="text-sm font-semibold text-slate-800">Post not found</h4>
-              <p className="text-xs text-slate-500 mt-1 mb-4">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Post not found</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
                 This vibe might have been deleted by the author or is unavailable.
               </p>
               <Link 

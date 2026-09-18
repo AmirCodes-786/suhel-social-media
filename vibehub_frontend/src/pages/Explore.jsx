@@ -125,25 +125,25 @@ const Explore = () => {
   }
 
   return (
-    <PageTransition className="min-h-screen w-screen bg-slate-50 text-slate-900 font-outfit pb-16 md:pb-0 flex flex-col">
+    <PageTransition className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit pb-16 md:pb-0 flex flex-col">
       
       {/* Top Header Bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 z-40">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 z-40">
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2">
-          <Activity className="h-6 w-6 text-indigo-600 animate-pulse" />
-          <span className="text-xl font-bold tracking-tight text-slate-950">VibeHub</span>
+          <Activity className="h-6 w-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+          <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">VibeHub</span>
         </Link>
 
         {/* Center: Search */}
         <form onSubmit={handleHeaderSearchSubmit} className="hidden md:flex items-center relative w-96">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search vibe..."
             value={headerSearchQuery}
             onChange={(e) => setHeaderSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-transparent rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-200 transition-all"
+            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
           />
         </form>
 
@@ -151,7 +151,7 @@ const Explore = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
+            className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all cursor-pointer"
             title="Create Post"
           >
             <Plus className="h-5 w-5" />
@@ -159,7 +159,7 @@ const Explore = () => {
           
           <Link
             to="/settings"
-            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-100 transition-all cursor-pointer"
+            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all cursor-pointer"
             title="Settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -169,7 +169,7 @@ const Explore = () => {
             <img
               src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
               alt={user?.username}
-              className="h-9 w-9 rounded-full object-cover border border-slate-200 hover:border-indigo-500 transition-colors"
+              className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors"
             />
           </Link>
         </div>
@@ -186,21 +186,21 @@ const Explore = () => {
           
           {/* Search Input */}
           <div className="relative mb-6 text-left">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search profiles, creators, friends..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-100 rounded-2xl py-3.5 pl-12 pr-4 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 shadow-sm"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-400 dark:placeholder-slate-500 shadow-sm"
             />
           </div>
 
           {/* Search Results Display */}
           {searchQuery.trim() !== '' && (
             <div className="space-y-4 mb-6 text-left">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-slate-400" />
+              <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                 <span>Matching Profiles</span>
               </h4>
 
@@ -209,7 +209,7 @@ const Explore = () => {
                   <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="py-6 text-slate-400 text-xs bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+                <div className="py-6 text-slate-400 dark:text-slate-500 text-xs bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-center shadow-sm">
                   No profiles match "{searchQuery}"
                 </div>
               ) : (
@@ -218,22 +218,22 @@ const Explore = () => {
                     <Link
                       key={profile.id}
                       to={`/profile/${profile.username}`}
-                      className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-100 rounded-2xl transition-colors group shadow-sm"
+                      className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-2xl transition-colors group shadow-sm"
                     >
                       <div className="flex items-center gap-3">
                         <img
                           src={profile.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                           alt={profile.username}
-                          className="h-10 w-10 rounded-full border border-slate-100 object-cover"
+                          className="h-10 w-10 rounded-full border border-slate-100 dark:border-slate-800 object-cover"
                         />
                         <div className="flex flex-col text-left">
-                          <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">
                             {profile.first_name ? `${profile.first_name} ${profile.last_name || ''}` : profile.username}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-light mt-0.5">@{profile.username}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-light mt-0.5">@{profile.username}</span>
                         </div>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                      <ArrowRight className="h-4 w-4 text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                     </Link>
                   ))}
                 </div>
@@ -243,8 +243,8 @@ const Explore = () => {
 
           {/* Explore / Trending Grid */}
           <div className="space-y-6">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 text-left">
-              <Compass className="h-3.5 w-3.5 text-slate-400" />
+            <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2 text-left">
+              <Compass className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
               <span>Trending Vibes</span>
             </h4>
 
@@ -254,10 +254,10 @@ const Explore = () => {
                 <span className="text-xs">Loading trends...</span>
               </div>
             ) : trendingPosts.length === 0 ? (
-              <div className="text-center py-20 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-                <Compass className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <h4 className="text-sm font-semibold text-slate-800">No trends yet</h4>
-                <p className="text-xs text-slate-500 mt-1">
+              <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                <Compass className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No trends yet</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Trending posts are compiled based on engagement. Check back later!
                 </p>
               </div>
