@@ -14,8 +14,8 @@ const ProtectedRoute = ({ children }) => {
     )
   }
 
-  // Neither user nor session — redirect to login
-  if (!user && !session) {
+  // User must exist to render protected routes
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 
