@@ -1,9 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
-import { Send, Image, Plus, MessageSquare, Loader2, ArrowLeft, MoreVertical, Activity, Search, Phone, Video, Paperclip, Smile, Mic, Trash, Trash2 } from 'lucide-react'
+import { 
+  Send, 
+  Image, 
+  Plus, 
+  MessageSquare, 
+  Loader2, 
+  ArrowLeft, 
+  MoreVertical, 
+  Activity, 
+  Search, 
+  Phone, 
+  Video, 
+  Paperclip, 
+  Smile, 
+  Mic, 
+  Trash2,
+  AlertCircle,
+  RefreshCw
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../supabaseClient'
 import { chatService, followsService } from '../supabaseService'
+import { cacheHelpers } from '../context/QueryProvider'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../components/ConfirmationModal'
 import EmojiPicker from 'emoji-picker-react'
@@ -13,18 +33,18 @@ import { useTheme } from '../context/ThemeContext'
 import MediaViewerModal from '../components/MediaViewerModal'
 
 const Messages = () => {
-  const { user, isDevMode } = useAuth()
+  const { user } = useAuth()
   const { theme } = useTheme()
   const navigate = useNavigate()
-  const [conversations, setConversations] = useState([])
+  const queryClient = useQueryClient()
+
+  const currentUserId = user?.id || user?._id
+
   const [activeConversation, setActiveConversation] = useState(null)
-  const [messages, setMessages] = useState([])
   const [inputText, setInputText] = useState('')
   const [mediaFile, setMediaFile] = useState(null)
   const [mediaPreview, setMediaPreview] = useState(null)
   const [viewerMedia, setViewerMedia] = useState(null)
-  const [loadingConv, setLoadingConv] = useState(true)
-  const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [convSearchQuery, setConvSearchQuery] = useState('')
@@ -32,13 +52,58 @@ const Messages = () => {
   const [clearChatModalOpen, setClearChatModalOpen] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
-  const [friends, setFriends] = useState([])
-  const [loadingFriends, setLoadingFriends] = useState(false)
-
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+
+  // 1. TanStack Query: Conversations List
+  const {
+    data: conversations = [],
+    isPending: isConvPending,
+    isFetching: isConvFetching,
+    isError: isConvError,
+    error: convError,
+    refetch: refetchConversations,
+  } = useQuery({
+    queryKey: ['conversations', currentUserId],
+    queryFn: () => chatService.getConversations(currentUserId),
+    enabled: Boolean(currentUserId),
+    staleTime: 30 * 1000,
+    refetchInterval: 10000,
+  })
+
+  // 2. TanStack Query: Messages for Active Conversation
+  const {
+    data: messages = [],
+    isPending: isMsgPending,
+    isFetching: isMsgFetching,
+    isError: isMsgError,
+    error: msgError,
+    refetch: refetchMessages,
+  } = useQuery({
+    queryKey: ['messages', currentUserId, activeConversation?.id],
+    queryFn: async () => {
+      if (!activeConversation?.id) return []
+      const data = await chatService.getMessages(activeConversation.id)
+      // Background mark-as-read
+      chatService.markAsRead(activeConversation.id, currentUserId).catch(() => {})
+      return data || []
+    },
+    enabled: Boolean(currentUserId && activeConversation?.id),
+    staleTime: 15 * 1000,
+    refetchInterval: 4000,
+  })
+
+  // 3. TanStack Query: Followed Friends for Quick Direct Messages
+  const {
+    data: friends = [],
+  } = useQuery({
+    queryKey: ['friends-following', user?.username],
+    queryFn: () => followsService.getFollowing(user.username),
+    enabled: Boolean(user?.username),
+    staleTime: 60 * 1000,
+  })
 
   const scrollToBottom = (behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior })
@@ -46,10 +111,10 @@ const Messages = () => {
 
   // Initial load scroll
   useEffect(() => {
-    if (!loadingMessages && messages.length > 0) {
+    if (!isMsgPending && messages.length > 0) {
       scrollToBottom('auto')
     }
-  }, [loadingMessages])
+  }, [isMsgPending, activeConversation?.id])
 
   // Smart scroll on new messages
   useEffect(() => {
@@ -58,126 +123,71 @@ const Messages = () => {
 
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150
     const lastMessage = messages[messages.length - 1]
-    const isMyMessage = lastMessage?.sender === user?.id || lastMessage?.sender === user?._id
+    const isMyMessage = lastMessage?.sender === currentUserId
 
     if (isNearBottom || isMyMessage) {
       setTimeout(() => scrollToBottom('smooth'), 100)
     }
-  }, [messages])
+  }, [messages, currentUserId])
 
-  // Fetch Conversation List
-  const fetchConversations = async (selectFirstId = null) => {
-    if (!user) return
-    try {
-      const data = await chatService.getConversations(user.id)
-      setConversations(data)
-      setLoadingConv(false)
+  // Supabase Realtime channel for live messages
+  useEffect(() => {
+    if (!activeConversation?.id) return
 
-      if (selectFirstId) {
-        const found = data.find(c => c.id === selectFirstId)
-        if (found) setActiveConversation(found)
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error)
-      setLoadingConv(false)
-    }
-  }
-
-  // Fetch Messages for active Conversation
-  const fetchMessages = async (convId) => {
-    if (!user) return
-    try {
-      const data = await chatService.getMessages(convId)
-      setMessages(data)
-      
-      // Mark conversation as read
-      await chatService.markAsRead(convId, user.id)
-      
-      // Update local unread counts in state
-      setConversations(prev => 
-        prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
+    const channel = supabase
+      .channel(`room:${activeConversation.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['messages', currentUserId, activeConversation.id] })
+          queryClient.invalidateQueries({ queryKey: ['conversations', currentUserId] })
+        }
       )
-    } catch (error) {
-      console.error('Error fetching messages:', error)
-    }
-  }
+      .subscribe()
 
-  useEffect(() => {
-    if (user) {
-      fetchConversations()
+    return () => {
+      supabase.removeChannel(channel)
     }
-  }, [user])
-
-  // Fetch followed users (friends)
-  useEffect(() => {
-    const fetchFriends = async () => {
-      if (!user?.username) return
-      setLoadingFriends(true)
-      try {
-        const data = await followsService.getFollowing(user.username)
-        setFriends(data)
-      } catch (error) {
-        console.error('Error fetching followed friends:', error)
-      } finally {
-        setLoadingFriends(false)
-      }
-    }
-
-    if (user) {
-      fetchFriends()
-    }
-  }, [user])
+  }, [activeConversation?.id, currentUserId, queryClient])
 
   const handleStartChat = async (friend) => {
-    if (!user) return
+    if (!currentUserId || !friend) return
     try {
-      const convId = await chatService.getOrCreateConversation(user.id, friend.id)
-      
-      // Look for conversation in our local list first
-      const existingConv = conversations.find(c => c.id === convId)
-      if (existingConv) {
-        setActiveConversation(existingConv)
+      const convId = await chatService.getOrCreateConversation(currentUserId, friend.id)
+      const found = conversations.find((c) => c.id === convId)
+      if (found) {
+        setActiveConversation(found)
       } else {
-        // Reload conversations to include the new one, then select it
-        setLoadingConv(true)
-        const data = await chatService.getConversations(user.id)
-        setConversations(data)
-        setLoadingConv(false)
-        const found = data.find(c => c.id === convId)
-        if (found) {
-          setActiveConversation(found)
-        }
+        await refetchConversations()
+        setActiveConversation({
+          id: convId,
+          partner: friend,
+          participants_detail: [user, friend],
+          unread_count: 0,
+        })
       }
     } catch (error) {
       console.error('Error starting chat with friend:', error)
-      alert('Failed to start chat.')
     }
   }
 
-  useEffect(() => {
-    if (!activeConversation) return
-
-    setLoadingMessages(true)
-    fetchMessages(activeConversation.id).finally(() => setLoadingMessages(false))
-  }, [activeConversation])
-
-  // Auto-focus textarea when typing anywhere in the chat
+  // Auto-focus textarea when typing
   useEffect(() => {
     if (!activeConversation) return
 
     const handleGlobalKeyDown = (e) => {
-      // Don't intercept if user is already typing in an input, textarea, or contentEditable
       const activeEl = document.activeElement
       if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
         return
       }
-      
-      // Ignore modifier keys, functional keys, arrows, etc.
       if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
         return
       }
-
-      // Automatically focus textarea and append character
       if (textareaRef.current) {
         e.preventDefault()
         textareaRef.current.focus()
@@ -188,78 +198,6 @@ const Messages = () => {
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
   }, [activeConversation])
-
-  // Real-time live polling & Supabase sync for ultra-smooth WhatsApp-like chats
-  useEffect(() => {
-    if (!activeConversation || !user) return
-
-    const handleNewData = (freshMessages) => {
-      if (!freshMessages) return
-      setMessages((prev) => {
-        // Pending optimistic messages (id starts with temp-)
-        const pendingOptimistic = prev.filter(m => String(m.id).startsWith('temp-'))
-        
-        // Map existing server messages to preserve any local state like client_id
-        const existingById = new Map(prev.map(m => [m.id, m]))
-        
-        const mergedServerMsgs = freshMessages.map(fm => {
-          const existing = existingById.get(fm.id)
-          return existing ? { ...fm, client_id: existing.client_id || existing.id } : fm
-        })
-
-        // Check if there's actually any difference in the server messages
-        const prevServerMsgs = prev.filter(m => !String(m.id).startsWith('temp-'))
-        if (mergedServerMsgs.length === prevServerMsgs.length && 
-            mergedServerMsgs[mergedServerMsgs.length - 1]?.id === prevServerMsgs[prevServerMsgs.length - 1]?.id) {
-          // No new server messages, just return prev to avoid unnecessary re-renders
-          return prev
-        }
-
-        // Return merged server messages + any still-pending optimistic messages
-        return [...mergedServerMsgs, ...pendingOptimistic]
-      })
-    }
-
-    // Fast 2.5s polling for instant message arrival
-    const interval = setInterval(() => {
-      chatService.getMessages(activeConversation.id).then(handleNewData).catch(() => {})
-    }, 2500)
-
-    // Supabase Realtime channel as backup
-    const channel = supabase
-      .channel(`room:${activeConversation.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
-            chatService.getMessages(activeConversation.id).then(handleNewData)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      clearInterval(interval)
-      supabase.removeChannel(channel)
-    }
-  }, [activeConversation, user])
-
-  // Background polling for conversation list updates (every 8s)
-  useEffect(() => {
-    if (!user) return
-    const convInterval = setInterval(() => {
-      chatService.getConversations(user.id).then((data) => {
-        if (data) setConversations(data)
-      }).catch(() => {})
-    }, 8000)
-
-    return () => clearInterval(convInterval)
-  }, [user])
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -273,56 +211,61 @@ const Messages = () => {
   const handleSendMessage = async (e) => {
     if (e && e.preventDefault) e.preventDefault()
     if (!inputText.trim() && !mediaFile) return
-    if (!user || !activeConversation) return
+    if (!currentUserId || !activeConversation) return
 
     const messageText = inputText.trim()
     const tempId = `temp-${Date.now()}`
-    
-    // Reset textarea height
+    const currentMediaFile = mediaFile
+    const currentMediaPreview = mediaPreview
+    const mediaType = currentMediaFile?.type?.startsWith('video/') ? 'video' : (currentMediaPreview ? 'image' : 'text')
+
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-    
-    // Instant optimistic message for WhatsApp feel
+
+    // Optimistic message
     const optimisticMsg = {
       id: tempId,
-      client_id: tempId,
-      conversation_id: activeConversation.id,
-      sender: user.id || user._id,
+      _optimisticId: tempId,
+      conversation: activeConversation.id,
+      sender: currentUserId,
       sender_detail: user,
       content: messageText,
-      media: mediaPreview,
-      media_type: mediaFile?.type?.startsWith('video/') ? 'video' : (mediaPreview ? 'image' : null),
+      media: currentMediaPreview,
+      media_type: mediaType,
       created_at: new Date().toISOString(),
       is_read: false,
       isOptimistic: true,
     }
 
-    setMessages((prev) => [...prev, optimisticMsg])
+    cacheHelpers.appendMessage(currentUserId, activeConversation.id, optimisticMsg)
     setInputText('')
     setMediaFile(null)
     setMediaPreview(null)
     setSending(true)
 
     try {
-      const sentData = await chatService.sendMessage(activeConversation.id, user.id, messageText, mediaFile)
+      const sentData = await chatService.sendMessage(activeConversation.id, currentUserId, messageText, currentMediaFile, mediaType)
       
-      // Preserve client_id so React key doesn't change, preventing flicker
-      sentData.client_id = tempId
-      
-      // Replace optimistic message with actual persisted message
-      setMessages((prev) => prev.map((m) => (m.id === tempId || m.client_id === tempId ? sentData : m)))
-      
-      setConversations(prev => 
-        prev.map(c => c.id === activeConversation.id 
-          ? { ...c, last_message: sentData, updated_at: sentData.created_at } 
-          : c
-        ).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at))
-      )
+      // Reconcile optimistic message with real message
+      queryClient.setQueryData(['messages', currentUserId, activeConversation.id], (old) => {
+        if (!Array.isArray(old)) return [sentData]
+        return old.map((m) => (m.id === tempId || m._optimisticId === tempId ? sentData : m))
+      })
+
+      // Update conversations cache with latest message
+      queryClient.setQueryData(['conversations', currentUserId], (old) => {
+        if (!Array.isArray(old)) return old
+        return old.map((c) =>
+          c.id === activeConversation.id ? { ...c, last_message: sentData, updated_at: sentData.created_at } : c
+        ).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      })
     } catch (error) {
       console.error('Error sending message:', error)
-      // Mark as failed instead of removing it
-      setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, isOptimistic: false, failed: true } : m))
+      queryClient.setQueryData(['messages', currentUserId, activeConversation.id], (old) => {
+        if (!Array.isArray(old)) return old
+        return old.map((m) => (m.id === tempId ? { ...m, isOptimistic: false, failed: true } : m))
+      })
     } finally {
       setSending(false)
     }
@@ -334,10 +277,10 @@ const Messages = () => {
 
   const confirmDeleteMessage = async () => {
     const { messageId } = deleteMsgModal
-    if (!messageId) return
+    if (!messageId || !activeConversation) return
     try {
       await chatService.deleteMessage(messageId)
-      setMessages(prev => prev.filter(m => m.id !== messageId))
+      cacheHelpers.removeMessage(currentUserId, activeConversation.id, messageId)
     } catch (error) {
       console.error('Error deleting message:', error)
     }
@@ -352,10 +295,7 @@ const Messages = () => {
     if (!activeConversation) return
     try {
       await chatService.clearChat(activeConversation.id)
-      setMessages([])
-      setConversations(prev =>
-        prev.map(c => c.id === activeConversation.id ? { ...c, last_message: null } : c)
-      )
+      cacheHelpers.clearConversationMessages(currentUserId, activeConversation.id)
     } catch (error) {
       console.error('Error clearing chat:', error)
     }
@@ -363,7 +303,7 @@ const Messages = () => {
 
   const getChatPartner = (conv) => {
     if (!conv) return null
-    return conv.partner || conv.participants_detail?.find(p => p.id !== user?.id)
+    return conv.partner || conv.participants_detail?.find((p) => p.id !== currentUserId)
   }
 
   const handleSearchSubmit = (e) => {
@@ -373,12 +313,14 @@ const Messages = () => {
     }
   }
 
-  // Filter conversation list by partner name
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = conversations.filter((conv) => {
     const partner = getChatPartner(conv)
     if (!partner) return false
-    return partner.username.toLowerCase().includes(convSearchQuery.toLowerCase())
+    return partner.username?.toLowerCase().includes(convSearchQuery.toLowerCase())
   })
+
+  const showConvSkeleton = isConvPending && conversations.length === 0
+  const showMsgSkeleton = isMsgPending && messages.length === 0
 
   return (
     <div className="h-[100dvh] w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit flex flex-col overflow-hidden relative">
@@ -399,7 +341,7 @@ const Messages = () => {
             placeholder="Search vibe..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-2 pl-10 pr-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
+            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-full py-1.5 pl-10 pr-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all"
           />
         </form>
 
@@ -434,7 +376,7 @@ const Messages = () => {
       <div className={`flex-1 flex md:pl-64 overflow-hidden relative ${activeConversation ? 'pt-0 md:pt-16 pb-0' : 'pt-16 pb-16 md:pb-0'}`}>
         {/* Sidebar navigation */}
         <div className={`${activeConversation ? 'hidden md:block' : 'block'}`}>
-          <Sidebar unreadMessagesCount={conversations.reduce((a,c)=>a+(c.unread_count||0),0)} />
+          <Sidebar unreadMessagesCount={conversations.reduce((a, c) => a + (c.unread_count || 0), 0)} />
         </div>
 
         {/* Outer Chat Split Area */}
@@ -444,7 +386,12 @@ const Messages = () => {
           <div className={`w-full md:w-80 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-6 pb-4 flex flex-col text-left space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Messages</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Messages</h3>
+                  {isConvFetching && !showConvSkeleton && (
+                    <Loader2 className="h-3 w-3 animate-spin text-indigo-500 opacity-60" title="Updating chats" />
+                  )}
+                </div>
                 <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
                   <MoreVertical className="h-4.5 w-4.5" />
                 </button>
@@ -495,9 +442,36 @@ const Messages = () => {
                 </div>
               )}
 
-              {loadingConv ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+              {showConvSkeleton ? (
+                /* CONVERSATIONS SKELETON */
+                <div className="space-y-2 animate-pulse">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
+                      <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+                        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : isConvError && conversations.length === 0 ? (
+                /* CONVERSATIONS ERROR */
+                <div className="text-center py-10 px-4 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/40 text-left space-y-2">
+                  <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 text-xs font-bold">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Failed to load chats</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {convError?.message || 'Unable to fetch conversation list.'}
+                  </p>
+                  <button
+                    onClick={() => refetchConversations()}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer pt-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    <span>Try again</span>
+                  </button>
                 </div>
               ) : filteredConversations.length === 0 ? (
                 <div className="text-center py-10 px-4 text-xs text-slate-400 dark:text-slate-500 font-light space-y-2 text-left">
@@ -535,7 +509,7 @@ const Messages = () => {
                             {partner?.username}
                           </span>
                           <span className="text-[8px] text-slate-400 dark:text-slate-500 font-light">
-                            {conv.last_message ? new Date(conv.last_message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                            {conv.last_message ? new Date(conv.last_message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
@@ -580,8 +554,11 @@ const Messages = () => {
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
                         {getChatPartner(activeConversation)?.username}
                       </span>
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-light">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-light flex items-center gap-1">
                         Online
+                        {isMsgFetching && !showMsgSkeleton && (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin text-indigo-500" />
+                        )}
                       </span>
                     </div>
                   </div>
@@ -600,252 +577,266 @@ const Messages = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <button className="p-2 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
 
-                {/* Message Feed Area */}
-                <div 
-                  ref={messagesContainerRef} 
-                  className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 no-scrollbar relative cursor-text"
-                  onClick={(e) => {
-                    // Only focus if they aren't selecting text or clicking a button/link
-                    const selection = window.getSelection()
-                    if (!selection.toString() && !e.target.closest('button') && !e.target.closest('a')) {
-                      textareaRef.current?.focus()
-                    }
-                  }}
-                >
-                  {loadingMessages ? (
-                    <div className="flex justify-center items-center h-full">
-                      <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                {/* Messages Feed Viewport */}
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                  {showMsgSkeleton ? (
+                    <div className="space-y-4 py-8 animate-pulse">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`h-12 w-48 rounded-2xl ${i % 2 === 0 ? 'bg-indigo-200 dark:bg-indigo-900/40' : 'bg-slate-200 dark:bg-slate-800'}`} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : isMsgError && messages.length === 0 ? (
+                    <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-2xl border border-rose-100 dark:border-rose-900/40 max-w-sm mx-auto shadow-sm space-y-3">
+                      <AlertCircle className="h-8 w-8 text-rose-500 mx-auto" />
+                      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Unable to load messages</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {msgError?.message || 'We could not connect to the chat service.'}
+                      </p>
+                      <button
+                        onClick={() => refetchMessages()}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md cursor-pointer transition-all"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        <span>Try Again</span>
+                      </button>
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center h-full text-slate-400 dark:text-slate-500 text-xs">
-                      <MessageSquare className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-                      <span>No messages yet. Say hi!</span>
+                    <div className="text-center py-20 text-slate-400 dark:text-slate-500">
+                      <MessageSquare className="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                      <p className="text-xs">No messages yet. Say hi to start the conversation!</p>
                     </div>
                   ) : (
-                    <>
-                      {/* Optional Date Separator */}
-                      <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold tracking-wider uppercase py-2">
-                        Chat History
-                      </div>
-                      
-                      {messages.map((msg) => {
-                        const isMe = msg.sender === user?.id
-                        
-                        return (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                            layout
-                            key={msg.client_id || msg.id} 
-                            className={`flex gap-3 text-left group ${isMe ? 'justify-end' : 'justify-start'}`}
-                          >
-                            {isMe && !msg.isOptimistic && (
-                              <button
-                                onClick={() => handleDeleteMessage(msg.id)}
-                                className="self-center opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
-                                title="Delete Message"
-                              >
-                                <Trash className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                            {!isMe && (
-                              <img
-                                src={msg.sender_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
-                                alt="Sender"
-                                className="h-8 w-8 rounded-full border border-slate-100 dark:border-slate-800 object-cover self-end shrink-0"
-                              />
-                            )}
-                            <div className={`flex flex-col max-w-[70%] transition-opacity ${msg.isOptimistic ? 'opacity-70' : 'opacity-100'} ${msg.failed ? 'opacity-90' : ''}`}>
-                              <div className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
-                                isMe 
-                                  ? (msg.failed ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white') + ' rounded-br-none shadow-sm'
-                                  : 'bg-[#f3f4f6] dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none'
-                              }`}>
-                                {msg.content && <p className="whitespace-pre-line">{msg.content}</p>}
-                                {msg.media && (
-                                  <img 
-                                    src={msg.media} 
-                                    alt="Message attachment" 
-                                    onClick={() => setViewerMedia({ url: msg.media, alt: 'Chat attachment', title: 'Attached Image' })}
-                                    className="mt-2 rounded-lg max-h-[200px] object-cover cursor-pointer hover:opacity-95 transition-opacity" 
-                                    title="Click to view full photo"
-                                  />
-                                )}
-                              </div>
-                              <div className={`flex items-center gap-1 mt-1 text-[8px] text-slate-400 dark:text-slate-500 font-light ${isMe ? 'self-end' : 'self-start'}`}>
-                                <span>{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                {isMe && !msg.isOptimistic && !msg.failed && (
-                                  <svg className="h-3 w-3 text-indigo-500 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                                {msg.failed && <span className="text-rose-500 font-medium">Failed</span>}
-                              </div>
+                    messages.map((msg, index) => {
+                      const isMe = msg.sender === currentUserId
+                      const partner = getChatPartner(activeConversation)
+                      const isOptimistic = msg.isOptimistic
+                      const isFailed = msg.failed
+
+                      return (
+                        <div
+                          key={msg.client_id || msg.id || index}
+                          className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'} group`}
+                        >
+                          {!isMe && (
+                            <img
+                              src={partner?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                              alt="Partner"
+                              className="h-7 w-7 rounded-full border border-slate-100 dark:border-slate-800 object-cover shrink-0 mb-1"
+                            />
+                          )}
+
+                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
+                            <div className="relative group/msg">
+                              {/* Media Attachment if present */}
+                              {msg.media && (
+                                <div className="mb-1 rounded-2xl overflow-hidden max-w-xs cursor-pointer">
+                                  {msg.media_type === 'video' ? (
+                                    <video src={msg.media} controls className="rounded-2xl max-h-60 w-full object-cover" />
+                                  ) : (
+                                    <img 
+                                      src={msg.media} 
+                                      alt="Attachment" 
+                                      className="rounded-2xl max-h-60 w-full object-cover"
+                                      onClick={() => setViewerMedia({ url: msg.media, alt: 'Chat attachment' })}
+                                    />
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Message bubble */}
+                              {msg.content && (
+                                <div
+                                  className={`p-3.5 px-4 rounded-2xl text-xs leading-relaxed text-left break-words shadow-sm relative ${
+                                    isMe
+                                      ? 'bg-indigo-600 text-white rounded-br-none'
+                                      : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none'
+                                  } ${isOptimistic ? 'opacity-70' : ''} ${isFailed ? 'border-2 border-rose-500' : ''}`}
+                                >
+                                  {msg.content}
+                                </div>
+                              )}
+
+                              {/* Delete message action (only for author) */}
+                              {isMe && !isOptimistic && !isFailed && (
+                                <button
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  className="absolute -left-7 top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                  title="Delete message"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
-                          </motion.div>
-                        )
-                      })}
-                    </>
+
+                            {/* Timestamp & Status */}
+                            <div className="flex items-center gap-1.5 mt-1 px-1">
+                              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-light">
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {isMe && (
+                                <span className="text-[9px] text-slate-400">
+                                  {isFailed ? (
+                                    <span className="text-rose-500 font-bold">Failed</span>
+                                  ) : isOptimistic ? (
+                                    <span className="text-indigo-400 font-bold">Sending...</span>
+                                  ) : (
+                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">✓</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
                   )}
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Chat Input Container */}
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 relative">
-                  {mediaPreview && (
-                    <div className="absolute bottom-20 left-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2.5 rounded-2xl flex items-center gap-2 shadow-lg">
-                      <img src={mediaPreview} alt="Attached upload preview" className="h-12 w-12 rounded-xl object-cover" />
-                      <button 
-                        type="button" 
-                        onClick={() => { setMediaFile(null); setMediaPreview(null); }}
-                        className="text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-bold px-1"
+                {/* Media preview before sending */}
+                {mediaPreview && (
+                  <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
+                    <div className="relative h-14 w-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
+                      <img src={mediaPreview} alt="Preview" className="h-full w-full object-cover" />
+                      <button
+                        onClick={() => { setMediaFile(null); setMediaPreview(null) }}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
                       >
-                        Remove
+                        ✕
                       </button>
+                    </div>
+                    <span className="text-xs text-slate-500 truncate max-w-xs">{mediaFile?.name}</span>
+                  </div>
+                )}
+
+                {/* Message Input Bottom Bar */}
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-end gap-2 shrink-0 relative"
+                >
+                  {/* Emoji Picker Popup */}
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-2xl overflow-hidden">
+                      <EmojiPicker
+                        theme={theme === 'dark' ? 'dark' : 'light'}
+                        onEmojiClick={(emojiData) => {
+                          setInputText((prev) => prev + emojiData.emoji)
+                          setShowEmojiPicker(false)
+                        }}
+                      />
                     </div>
                   )}
 
-                  {/* Input Form Bar */}
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-3 relative bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700 rounded-2xl px-4 py-2">
-                    
-                    {/* Attachments (Photo only) */}
-                    <div className="flex items-center text-slate-400 dark:text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={sending}
-                        className="p-1.5 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
-                        title="Upload Photo"
-                      >
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                        <Image className="h-4.5 w-4.5" />
-                      </button>
-                    </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*,video/*"
+                    className="hidden"
+                  />
 
-                    {/* Text Field */}
-                    <textarea
-                      ref={textareaRef}
-                      placeholder={`Message ${getChatPartner(activeConversation)?.username || ''}...`}
-                      value={inputText}
-                      onChange={(e) => {
-                        setInputText(e.target.value)
-                        e.target.style.height = 'auto'
-                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendMessage(e)
-                        }
-                      }}
-                      disabled={sending}
-                      rows={1}
-                      style={{ resize: 'none' }}
-                      className="flex-1 bg-transparent border-none outline-none py-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 min-h-[32px] max-h-[120px] overflow-y-auto no-scrollbar"
-                    />
+                  <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="p-2 rounded-xl hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      title="Emojis"
+                    >
+                      <Smile className="h-4.5 w-4.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 rounded-xl hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      title="Attach photo/video"
+                    >
+                      <Paperclip className="h-4.5 w-4.5" />
+                    </button>
+                  </div>
 
-                    {/* Emoji and Send */}
-                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 relative">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className="p-1.5 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
-                        >
-                          <Smile className="h-4.5 w-4.5" />
-                        </button>
-                        
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-12 right-0 z-50 shadow-2xl">
-                            <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)}></div>
-                            <div className="relative z-50">
-                              <EmojiPicker 
-                                theme={theme === 'dark' ? 'dark' : 'light'}
-                                onEmojiClick={(emojiData) => {
-                                  setInputText(prev => prev + emojiData.emoji)
-                                }}
-                                width={300}
-                                height={400}
-                                searchDisabled
-                                skinTonesDisabled
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                  {/* Dynamic height textarea for clean multiline chat */}
+                  <textarea
+                    ref={textareaRef}
+                    rows="1"
+                    placeholder="Type a message..."
+                    value={inputText}
+                    onChange={(e) => {
+                      setInputText(e.target.value)
+                      e.target.style.height = 'auto'
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendMessage(e)
+                      }
+                    }}
+                    className="flex-1 bg-slate-50 dark:bg-slate-800/80 border border-transparent dark:border-slate-700/50 rounded-2xl py-2.5 px-4 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-slate-200 dark:focus:border-slate-700 transition-all resize-none max-h-32 no-scrollbar"
+                  />
 
-                      <button
-                        type="submit"
-                        disabled={sending || (!inputText.trim() && !mediaFile)}
-                        className="h-8 w-8 flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors cursor-pointer"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </form>
-
-                  {/* Secure Chat Footer */}
-                  <span className="text-[8px] font-bold text-slate-300 dark:text-slate-600 tracking-wider text-center uppercase mt-3">
-                    End-to-End Encrypted • Vibe Safely
-                  </span>
-                </div>
+                  <button
+                    type="submit"
+                    disabled={(!inputText.trim() && !mediaFile) || sending}
+                    className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 mb-0.5 ${
+                      (inputText.trim() || mediaFile) && !sending
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    {sending ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Send className="h-4.5 w-4.5" />}
+                  </button>
+                </form>
               </>
             ) : (
-              <div className="flex flex-col items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 shadow-sm mb-4">
-                  <MessageSquare className="h-6 w-6" />
+              <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                <div className="h-16 w-16 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <MessageSquare className="h-8 w-8" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Select a chat</h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Pick a conversation from the left to start vibes</p>
+                <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Your Messages</h4>
+                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs">
+                  Send private photos, videos, and messages to creators and friends.
+                </p>
               </div>
             )}
           </div>
 
         </div>
+
       </div>
 
+      {/* Confirmation Modal for Delete Message */}
       <ConfirmationModal
         isOpen={deleteMsgModal.isOpen}
         onClose={() => setDeleteMsgModal({ isOpen: false, messageId: null })}
         onConfirm={confirmDeleteMessage}
-        title="Delete Message?"
+        title="Delete Message"
         message="Are you sure you want to delete this message? This action cannot be undone."
         confirmText="Delete"
-        cancelText="Cancel"
-        isDestructive={true}
+        isDanger={true}
       />
 
+      {/* Confirmation Modal for Clear Chat */}
       <ConfirmationModal
         isOpen={clearChatModalOpen}
         onClose={() => setClearChatModalOpen(false)}
         onConfirm={confirmClearChat}
-        title="Clear Chat?"
-        message="Are you sure you want to clear all messages in this chat? This action cannot be undone."
-        confirmText="Clear Chat"
-        cancelText="Cancel"
-        isDestructive={true}
+        title="Clear Entire Chat"
+        message="Are you sure you want to clear all messages in this conversation?"
+        confirmText="Clear All"
+        isDanger={true}
       />
 
-      {/* Lightbox Media Viewer Modal for Message Photos */}
+      {/* Fullscreen Photo Lightbox for Chat Media */}
       <MediaViewerModal
         isOpen={Boolean(viewerMedia)}
         onClose={() => setViewerMedia(null)}
         mediaUrl={viewerMedia?.url}
         mediaAlt={viewerMedia?.alt}
-        title={viewerMedia?.title}
       />
     </div>
   )

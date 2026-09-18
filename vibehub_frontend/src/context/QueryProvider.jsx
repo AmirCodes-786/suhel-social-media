@@ -120,6 +120,48 @@ export const cacheHelpers = {
     queryClient.invalidateQueries({ queryKey: ['unread-badges', userId] })
   },
 
+  // Chat & Messages operations
+  invalidateConversations: (userId) => {
+    if (userId) {
+      queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
+      queryClient.invalidateQueries({ queryKey: ['unread-badges', userId] })
+    }
+  },
+
+  invalidateMessages: (userId, conversationId) => {
+    if (userId && conversationId) {
+      queryClient.invalidateQueries({ queryKey: ['messages', userId, conversationId] })
+    }
+  },
+
+  appendMessage: (userId, conversationId, newMessage) => {
+    if (!userId || !conversationId || !newMessage) return
+    queryClient.setQueryData(['messages', userId, conversationId], (oldData) => {
+      if (!Array.isArray(oldData)) return [newMessage]
+      // Avoid duplicate if already present (e.g. from optimistic ID match)
+      if (oldData.some((m) => m.id === newMessage.id || (m._optimisticId && m._optimisticId === newMessage._optimisticId))) {
+        return oldData.map((m) => (m._optimisticId === newMessage._optimisticId || m.id === newMessage.id ? newMessage : m))
+      }
+      return [...oldData, newMessage]
+    })
+    queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
+  },
+
+  removeMessage: (userId, conversationId, messageId) => {
+    if (!userId || !conversationId || !messageId) return
+    queryClient.setQueryData(['messages', userId, conversationId], (oldData) => {
+      if (!Array.isArray(oldData)) return oldData
+      return oldData.filter((m) => m.id !== messageId)
+    })
+    queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
+  },
+
+  clearConversationMessages: (userId, conversationId) => {
+    if (!userId || !conversationId) return
+    queryClient.setQueryData(['messages', userId, conversationId], () => [])
+    queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
+  },
+
   // Complete User Cache Eviction on Logout / Switch Account
   clearUserCache: () => {
     queryClient.clear()

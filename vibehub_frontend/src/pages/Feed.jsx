@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Sidebar from '../components/Sidebar'
 import StoriesBar from '../components/StoriesBar'
 import PostCard from '../components/PostCard'
@@ -6,7 +6,7 @@ import FeedSkeleton, { PostCardSkeleton } from '../components/FeedSkeleton'
 import CreatePostModal from '../components/CreatePostModal'
 import StoryViewerModal from '../components/StoryViewerModal'
 import PageTransition from '../components/PageTransition'
-import { Activity, Plus, Search, Users, Settings as SettingsIcon } from 'lucide-react'
+import { Activity, Plus, Search, Users, Settings as SettingsIcon, AlertCircle, RefreshCw } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
@@ -25,15 +25,13 @@ const Feed = () => {
   const userId = user?.id || user?._id
   const navigate = useNavigate()
 
-  const [posts, setPosts] = useState([])
+  const [extraPosts, setExtraPosts] = useState([])
+  const [extraNextCursor, setExtraNextCursor] = useState(null)
+  const [extraHasMore, setExtraHasMore] = useState(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createDefaultType, setCreateDefaultType] = useState('post')
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // Pagination & infinite scroll states
-  const [hasMore, setHasMore] = useState(true)
-  const [nextCursor, setNextCursor] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = useRef(null)
 
@@ -41,6 +39,8 @@ const Feed = () => {
   const {
     data: initialFeedPosts,
     isLoading: loadingFeed,
+    isError: isFeedError,
+    error: feedError,
     refetch: refetchFeed,
   } = useQuery({
     queryKey: ['feed', userId],
@@ -52,14 +52,9 @@ const Feed = () => {
     staleTime: 60 * 1000, // 1 min freshness
   })
 
-  // Sync initial feed data into local posts list when loaded or refetched
-  useEffect(() => {
-    if (initialFeedPosts) {
-      setPosts(initialFeedPosts)
-      setHasMore(Boolean(initialFeedPosts.hasMore))
-      setNextCursor(initialFeedPosts.nextCursor || null)
-    }
-  }, [initialFeedPosts])
+  const posts = [...(initialFeedPosts || []), ...extraPosts]
+  const hasMore = extraHasMore !== null ? extraHasMore : Boolean(initialFeedPosts?.hasMore)
+  const nextCursor = extraNextCursor !== null ? extraNextCursor : (initialFeedPosts?.nextCursor || null)
 
   // 2. TanStack Query: Stories
   const {
@@ -116,15 +111,15 @@ const Feed = () => {
     try {
       const nextBatch = await postsService.getFeed(userId, { limit: 10, cursor: nextCursor })
       if (nextBatch && nextBatch.length > 0) {
-        setPosts((prev) => [...prev, ...nextBatch])
-        setHasMore(Boolean(nextBatch.hasMore))
-        setNextCursor(nextBatch.nextCursor || null)
+        setExtraPosts((prev) => [...prev, ...nextBatch])
+        setExtraHasMore(Boolean(nextBatch.hasMore))
+        setExtraNextCursor(nextBatch.nextCursor || null)
       } else {
-        setHasMore(false)
+        setExtraHasMore(false)
       }
     } catch (error) {
       console.error('Error loading more posts:', error)
-      setHasMore(false)
+      setExtraHasMore(false)
     } finally {
       setLoadingMore(false)
     }
@@ -151,7 +146,6 @@ const Feed = () => {
   const handlePostCreated = (newPost, type) => {
     if (type === 'post') {
       if (newPost) {
-        setPosts((prev) => [newPost, ...prev])
         cacheHelpers.prependFeedPost(userId, newPost)
       }
       refetchFeed()
@@ -162,20 +156,21 @@ const Feed = () => {
   }
 
   const handleLikeUpdate = useCallback((postId, isLiked, likesCount) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, is_liked: isLiked, likes_count: likesCount } : p))
-    )
-  }, [])
+    const updater = (p) => (p.id === postId ? { ...p, is_liked: isLiked, likes_count: likesCount } : p)
+    cacheHelpers.updateFeedPost(userId, postId, updater)
+    setExtraPosts((prev) => prev.map(updater))
+  }, [userId])
 
   const handleSaveUpdate = useCallback((postId, isSaved) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, is_saved: isSaved } : p))
-    )
-  }, [])
+    const updater = (p) => (p.id === postId ? { ...p, is_saved: isSaved } : p)
+    cacheHelpers.updateFeedPost(userId, postId, updater)
+    setExtraPosts((prev) => prev.map(updater))
+  }, [userId])
 
   const handleDeletePost = useCallback((postId) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId))
-  }, [])
+    cacheHelpers.removeFeedPost(userId, postId)
+    setExtraPosts((prev) => prev.filter((p) => p.id !== postId))
+  }, [userId])
 
   const handleStoryViewed = () => {
     cacheHelpers.invalidateStories(userId)
@@ -333,10 +328,46 @@ const Feed = () => {
               </div>
             )}
 
+            {/* Background error banner if cached data is visible but revalidation failed */}
+            {isFeedError && posts.length > 0 && (
+              <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Couldn't update feed. Showing cached posts.</span>
+                </div>
+                <button
+                  onClick={() => refetchFeed()}
+                  className="font-bold underline ml-2 hover:opacity-80 cursor-pointer text-[11px]"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {/* Posts Feed */}
             <div className="space-y-6 mt-2">
               {isInitialLoading ? (
                 <FeedSkeleton />
+              ) : isFeedError && posts.length === 0 ? (
+                /* ERROR STATE WITH RETRY - Real request failure with no cached posts */
+                <div className="text-center py-16 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-2xl p-8 shadow-sm">
+                  <div className="h-12 w-12 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center mx-auto mb-3 text-rose-500">
+                    <AlertCircle className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    Unable to load your feed
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+                    {feedError?.message || 'We had trouble connecting to the server. Please check your connection and try again.'}
+                  </p>
+                  <button
+                    onClick={() => refetchFeed()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Try Again</span>
+                  </button>
+                </div>
               ) : posts.length === 0 ? (
                 <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
                   <Users className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />

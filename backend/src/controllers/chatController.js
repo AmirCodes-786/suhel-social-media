@@ -21,8 +21,9 @@ export const getConversations = async (req, res, next) => {
 
     const convIds = conversations.map((c) => c._id);
 
-    // Batch aggregate unread counts for all conversations in a single database query
-    const [unreadCounts, lastMessages] = await Promise.all([
+    // 1. Single aggregate for unread message counts
+    // 2. Single aggregate to identify the latest message ID for each conversation
+    const [unreadCounts, latestMessageGroups] = await Promise.all([
       Message.aggregate([
         {
           $match: {
@@ -33,21 +34,36 @@ export const getConversations = async (req, res, next) => {
         },
         { $group: { _id: '$conversation', count: { $sum: 1 } } },
       ]),
-      Promise.all(
-        conversations.map((conv) =>
-          Message.findOne({ conversation: conv._id })
-            .sort({ createdAt: -1 })
-            .populate({ path: 'sender', populate: { path: 'profile' } })
-        )
-      ),
+      Message.aggregate([
+        { $match: { conversation: { $in: convIds } } },
+        { $sort: { createdAt: -1 } },
+        {
+          $group: {
+            _id: '$conversation',
+            messageId: { $first: '$_id' },
+          },
+        },
+      ]),
     ]);
 
-    const unreadMap = new Map(unreadCounts.map((u) => [u._id.toString(), u.count]));
+    // Batch populate only the latest messages in ONE query
+    const latestMessageIds = latestMessageGroups.map((g) => g.messageId).filter(Boolean);
+    const populatedLatestMessages = latestMessageIds.length > 0
+      ? await Message.find({ _id: { $in: latestMessageIds } }).populate({
+          path: 'sender',
+          populate: { path: 'profile' },
+        })
+      : [];
 
-    const formattedList = conversations.map((conv, idx) => {
+    const unreadMap = new Map(unreadCounts.map((u) => [u._id.toString(), u.count]));
+    const latestMessageMap = new Map(
+      populatedLatestMessages.map((m) => [m.conversation.toString(), m])
+    );
+
+    const formattedList = conversations.map((conv) => {
       const convIdStr = conv._id.toString();
       return formatConversation(conv, currentUserId, {
-        last_message: lastMessages[idx] || null,
+        last_message: latestMessageMap.get(convIdStr) || null,
         unread_count: unreadMap.get(convIdStr) || 0,
       });
     });

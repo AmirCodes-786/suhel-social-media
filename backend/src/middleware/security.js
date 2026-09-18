@@ -19,6 +19,7 @@ export const corsMiddleware = cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['X-Has-More', 'X-Next-Cursor', 'x-has-more', 'x-next-cursor'],
 });
 
 export const apiLimiter = rateLimit({

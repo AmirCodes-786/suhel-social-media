@@ -26,19 +26,7 @@ export const postsService = {
       return posts;
     } catch (err) {
       console.error('Error fetching feed from API:', err);
-      // Fallback to general posts list if feed has no following yet
-      try {
-        const response = await api.get('/api/posts/');
-        const allPosts = Array.isArray(response.data) ? response.data : [];
-        allPosts.hasMore = false;
-        allPosts.nextCursor = null;
-        return allPosts;
-      } catch {
-        const empty = [];
-        empty.hasMore = false;
-        empty.nextCursor = null;
-        return empty;
-      }
+      throw err;
     }
   },
 
@@ -302,7 +290,7 @@ export const storiesService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching stories:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -395,7 +383,7 @@ export const chatService = {
       });
     } catch (err) {
       console.error('Error fetching conversations:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -406,7 +394,7 @@ export const chatService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching messages:', err);
-      return [];
+      throw err;
     }
   },
 
