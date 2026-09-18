@@ -60,6 +60,18 @@ app.get('/health', (req, res) => {
 // Apply rate limiting to all /api routes
 app.use('/api', apiLimiter);
 
+// Database Readiness Check Middleware
+app.use('/api', (req, res, next) => {
+  const db = getDbState();
+  if (db.status !== 'connected') {
+    return res.status(503).json({
+      detail: 'Service Unavailable: Database connection is currently down. Please try again later.',
+      error: 'Database disconnected'
+    });
+  }
+  next();
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
