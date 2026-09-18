@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import PostCard from '../components/PostCard'
@@ -6,7 +6,6 @@ import CreatePostModal from '../components/CreatePostModal'
 import EditProfileDrawer from '../components/EditProfileDrawer'
 import FollowersFollowingModal from '../components/FollowersFollowingModal'
 import { 
-  User, 
   MapPin, 
   Link as LinkIcon, 
   Grid, 
@@ -16,11 +15,15 @@ import {
   Plus, 
   Loader2, 
   Activity,
-  Search
+  Search,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../supabaseClient'
 import { postsService, profilesService, followsService, chatService } from '../supabaseService'
+import { cacheHelpers } from '../context/QueryProvider'
 import PageTransition from '../components/PageTransition'
 import { motion } from 'framer-motion'
 import MediaViewerModal from '../components/MediaViewerModal'
@@ -28,106 +31,89 @@ import MediaViewerModal from '../components/MediaViewerModal'
 const Profile = () => {
   const { username } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { user: currentUser } = useAuth()
   
-  const [profileUser, setProfileUser] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [savedPosts, setSavedPosts] = useState([])
   const [activeTab, setActiveTab] = useState('posts') // 'posts' or 'saved'
-  const [loadingProfile, setLoadingProfile] = useState(true)
-  const [loadingContent, setLoadingContent] = useState(true)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [followModal, setFollowModal] = useState({ isOpen: false, type: 'followers' })
   const [viewerMedia, setViewerMedia] = useState(null)
 
-  const isOwnProfile = !username || username === 'undefined' || username === 'me' || currentUser?.username === username || currentUser?.id === username
+  // Stable identifiers
+  const currentUserId = currentUser?.id || currentUser?._id
+  const isOwnProfile = 
+    !username || 
+    username === 'undefined' || 
+    username === 'me' || 
+    currentUser?.username?.toLowerCase() === username?.toLowerCase() || 
+    currentUserId === username
 
-  // Fetch profile owner details
-  const fetchProfileDetails = async () => {
-    if (!currentUser) return
-    setLoadingProfile(true)
-    
-    // If viewing own profile, immediately show current user state
-    if (isOwnProfile) {
-      setProfileUser(currentUser)
-    }
+  const targetUsername = isOwnProfile 
+    ? (currentUser?.username || currentUserId) 
+    : username
 
-    try {
-      const targetUsername = isOwnProfile ? (currentUser.username || currentUser.id) : username
-      if (targetUsername && targetUsername !== 'undefined') {
-        const data = await profilesService.getProfile(targetUsername, currentUser.id)
-        if (data) {
-          setProfileUser(data)
-          return
-        }
-      }
-      
-      if (isOwnProfile) {
-        setProfileUser(currentUser)
-      } else {
-        alert('User profile not found.')
-        navigate('/')
-      }
-    } catch (error) {
-      console.error('Error fetching profile user:', error)
-      if (isOwnProfile) {
-        setProfileUser(currentUser)
-      } else {
-        alert('User profile not found.')
-        navigate('/')
-      }
-    } finally {
-      setLoadingProfile(false)
-    }
-  }
+  // 1. Profile Details Query
+  // When viewing own profile, immediately use currentUser as placeholder/initial data for 0s wait
+  const {
+    data: profileUser,
+    isPending: isProfilePending,
+    isFetching: isProfileFetching,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useQuery({
+    queryKey: ['profile', targetUsername, currentUserId],
+    queryFn: async () => {
+      const data = await profilesService.getProfile(targetUsername, currentUserId)
+      if (!data) throw new Error('User profile not found.')
+      return data
+    },
+    enabled: Boolean(targetUsername && currentUserId),
+    staleTime: 60 * 1000,
+    placeholderData: isOwnProfile && currentUser ? currentUser : undefined,
+  })
 
-  // Fetch posts created by the profile owner
-  const fetchUserPosts = async () => {
-    if (!currentUser) return
-    setLoadingContent(true)
-    try {
-      const data = await postsService.getUserPosts(username, currentUser.id)
-      setPosts(data)
-    } catch (error) {
-      console.error('Error fetching user posts:', error)
-    } finally {
-      setLoadingContent(false)
-    }
-  }
+  // 2. Profile User Posts Query
+  const {
+    data: posts = [],
+    isPending: isPostsPending,
+    isFetching: isPostsFetching,
+    isError: isPostsError,
+    error: postsError,
+    refetch: refetchPosts,
+  } = useQuery({
+    queryKey: ['profile-posts', targetUsername, currentUserId],
+    queryFn: () => postsService.getUserPosts(targetUsername, currentUserId),
+    enabled: Boolean(targetUsername && currentUserId),
+    staleTime: 60 * 1000,
+  })
 
-  // Fetch saved posts
-  const fetchSavedPosts = async () => {
-    if (!isOwnProfile || !currentUser) return
-    setLoadingContent(true)
-    try {
-      const data = await postsService.getSavedPosts(currentUser.id)
-      setSavedPosts(data || [])
-    } catch (error) {
-      console.error('Error fetching saved posts:', error)
-    } finally {
-      setLoadingContent(false)
-    }
-  }
+  // 3. User Saved Posts Query (strictly private and scoped to currentUserId)
+  const {
+    data: savedPosts = [],
+    isPending: isSavedPending,
+    isFetching: isSavedFetching,
+    isError: isSavedError,
+    refetch: refetchSaved,
+  } = useQuery({
+    queryKey: ['saved-posts', currentUserId],
+    queryFn: () => postsService.getSavedPosts(currentUserId),
+    enabled: Boolean(isOwnProfile && currentUserId && activeTab === 'saved'),
+    staleTime: 60 * 1000,
+  })
 
+  const handleDeletePost = useCallback((postId) => {
+    const filter = (list) => (Array.isArray(list) ? list.filter((p) => p.id !== postId) : list)
+    queryClient.setQueryData(['profile-posts', targetUsername, currentUserId], filter)
+    queryClient.setQueryData(['saved-posts', currentUserId], filter)
+    cacheHelpers.removeFeedPost(currentUserId, postId)
+  }, [queryClient, targetUsername, currentUserId])
+
+  // Realtime subscription for deleted posts
   useEffect(() => {
-    if (username && currentUser) {
-      fetchProfileDetails()
-      fetchUserPosts()
-    }
-  }, [username, currentUser])
-
-  useEffect(() => {
-    if (activeTab === 'saved') {
-      fetchSavedPosts()
-    } else {
-      fetchUserPosts()
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!currentUser) return
+    if (!currentUserId) return
 
     const channel = supabase
       .channel('profile-posts-changes')
@@ -141,8 +127,7 @@ const Profile = () => {
         (payload) => {
           const deletedId = payload.old?.id
           if (deletedId) {
-            setPosts((prev) => prev.filter((p) => p.id !== deletedId))
-            setSavedPosts((prev) => prev.filter((p) => p.id !== deletedId))
+            handleDeletePost(deletedId)
           }
         }
       )
@@ -151,26 +136,34 @@ const Profile = () => {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUser])
+  }, [currentUserId, handleDeletePost])
 
   const handleFollowToggle = async () => {
-    if (!currentUser || !profileUser) return
+    if (!currentUserId || !profileUser) return
     try {
-      await followsService.toggleFollow(currentUser.id, profileUser.id)
-      // Fetch updated profile
-      const updated = await profilesService.getProfile(username, currentUser.id)
-      if (updated) {
-        setProfileUser(updated)
-      }
+      const res = await followsService.toggleFollow(currentUserId, profileUser.id)
+      queryClient.setQueryData(['profile', targetUsername, currentUserId], (old) => {
+        if (!old) return old
+        const isNowFollowing = res?.is_following ?? !old.is_following
+        return {
+          ...old,
+          is_following: isNowFollowing,
+          followers_count: isNowFollowing 
+            ? (old.followers_count || 0) + 1 
+            : Math.max(0, (old.followers_count || 1) - 1),
+        }
+      })
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUsername, currentUserId] })
+      cacheHelpers.invalidateFeed(currentUserId)
     } catch (error) {
       console.error('Error toggling follow:', error)
     }
   }
 
   const handleStartMessage = async () => {
-    if (!currentUser || !profileUser) return
+    if (!currentUserId || !profileUser) return
     try {
-      await chatService.getOrCreateConversation(currentUser.id, profileUser.id)
+      await chatService.getOrCreateConversation(currentUserId, profileUser.id)
       navigate('/messages')
     } catch (error) {
       console.error('Error starting conversation:', error)
@@ -178,34 +171,47 @@ const Profile = () => {
   }
 
   const handleProfileUpdated = (updatedUser) => {
-    setProfileUser(updatedUser)
+    if (updatedUser) {
+      queryClient.setQueryData(['profile', targetUsername, currentUserId], updatedUser)
+    }
+    queryClient.invalidateQueries({ queryKey: ['profile', targetUsername] })
+    cacheHelpers.invalidateFeed(currentUserId)
   }
 
   const handleLikeUpdate = (postId, isLiked, likesCount) => {
-    const updater = (list) => list.map((p) => (p.id === postId ? { ...p, is_liked: isLiked, likes_count: likesCount } : p))
-    setPosts(updater)
-    setSavedPosts(updater)
+    const updater = (list) => {
+      if (!Array.isArray(list)) return list
+      return list.map((p) => (p.id === postId ? { ...p, is_liked: isLiked, likes_count: likesCount } : p))
+    }
+    queryClient.setQueryData(['profile-posts', targetUsername, currentUserId], updater)
+    queryClient.setQueryData(['saved-posts', currentUserId], updater)
+    cacheHelpers.updateFeedPost(currentUserId, postId, (p) => ({ ...p, is_liked: isLiked, likes_count: likesCount }))
   }
 
   const handleSaveUpdate = (postId, isSaved) => {
-    const updater = (list) => list.map((p) => (p.id === postId ? { ...p, is_saved: isSaved } : p))
-    setPosts(updater)
-    setSavedPosts(updater)
-    if (!isSaved && activeTab === 'saved') {
-      setSavedPosts((prev) => prev.filter((p) => p.id !== postId))
-    }
-  }
+    queryClient.setQueryData(['profile-posts', targetUsername, currentUserId], (list) => {
+      if (!Array.isArray(list)) return list
+      return list.map((p) => (p.id === postId ? { ...p, is_saved: isSaved } : p))
+    })
 
-  const handleDeletePost = (postId) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId))
-    setSavedPosts((prev) => prev.filter((p) => p.id !== postId))
+    queryClient.setQueryData(['saved-posts', currentUserId], (list) => {
+      if (!Array.isArray(list)) return list
+      if (!isSaved && activeTab === 'saved') {
+        return list.filter((p) => p.id !== postId)
+      }
+      return list.map((p) => (p.id === postId ? { ...p, is_saved: isSaved } : p))
+    })
+
+    cacheHelpers.updateFeedPost(currentUserId, postId, (p) => ({ ...p, is_saved: isSaved }))
   }
 
   const handlePostCreated = (newPost, type) => {
-    if (type === 'post') {
-      if (isOwnProfile) {
-        setPosts((prev) => [newPost, ...prev])
-      }
+    if (type === 'post' && isOwnProfile) {
+      queryClient.setQueryData(['profile-posts', targetUsername, currentUserId], (old) => {
+        if (!Array.isArray(old)) return [newPost]
+        return [newPost, ...old]
+      })
+      cacheHelpers.prependFeedPost(currentUserId, newPost)
     }
   }
 
@@ -215,6 +221,11 @@ const Profile = () => {
       navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`)
     }
   }
+
+  // Determine loading / skeleton conditions
+  const showProfileSkeleton = isProfilePending && !profileUser
+  const showPostsSkeleton = isPostsPending && posts.length === 0
+  const showSavedSkeleton = isSavedPending && savedPosts.length === 0
 
   return (
     <PageTransition className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit pb-16 md:pb-0 flex flex-col">
@@ -275,10 +286,50 @@ const Profile = () => {
 
         {/* Main Profile Area */}
         <main className="flex-1 max-w-xl mx-auto flex flex-col min-w-0 py-6 md:py-8 px-4">
-          {loadingProfile ? (
-            <div className="flex flex-col items-center justify-center py-40 text-slate-400">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
-              <span className="text-xs">Loading profile...</span>
+          
+          {showProfileSkeleton ? (
+            /* PROFILE SKELETON */
+            <div className="w-full flex flex-col bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm animate-pulse">
+              <div className="h-40 w-full bg-slate-200 dark:bg-slate-800" />
+              <div className="px-6 pb-6 relative flex flex-col items-start">
+                <div className="relative -mt-14 mb-4 h-24 w-24 rounded-full border-4 border-white dark:border-slate-900 bg-slate-300 dark:bg-slate-700" />
+                <div className="h-5 w-40 bg-slate-200 dark:bg-slate-800 rounded-md mb-2" />
+                <div className="h-3.5 w-24 bg-slate-100 dark:bg-slate-800/60 rounded-md mb-4" />
+                <div className="h-3 w-3/4 bg-slate-100 dark:bg-slate-800/60 rounded-md mb-4" />
+                <div className="flex gap-6 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4 w-full">
+                  <div className="h-6 w-14 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                  <div className="h-6 w-14 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                  <div className="h-6 w-14 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                </div>
+              </div>
+            </div>
+          ) : isProfileError && !profileUser ? (
+            /* ERROR STATE */
+            <div className="text-center py-20 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-2xl p-8 shadow-sm">
+              <div className="h-12 w-12 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center mx-auto mb-3 text-rose-500">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Profile Not Found
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+                {profileError?.message || "We couldn't load this user profile. Please check the username or try again."}
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => refetchProfile()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Try Again</span>
+                </button>
+                <Link
+                  to="/"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold rounded-xl transition-all"
+                >
+                  Back to Feed
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="w-full flex flex-col bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
@@ -372,9 +423,14 @@ const Profile = () => {
                 </div>
 
                 {/* Username details */}
-                <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-0.5">
-                  {profileUser?.first_name ? `${profileUser.first_name} ${profileUser.last_name || ''}` : profileUser?.username}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-0.5">
+                    {profileUser?.first_name ? `${profileUser.first_name} ${profileUser.last_name || ''}` : profileUser?.username}
+                  </h2>
+                  {isProfileFetching && !showProfileSkeleton && (
+                    <Loader2 className="h-3 w-3 animate-spin text-indigo-500 opacity-60" title="Refreshing in background" />
+                  )}
+                </div>
                 <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">@{profileUser?.username}</span>
 
                 {/* Biography */}
@@ -409,7 +465,7 @@ const Profile = () => {
                 <div className="flex gap-6 mt-6 border-t border-slate-100 dark:border-slate-800 pt-4 w-full">
                   <div className="flex flex-col text-left">
                     <span className="text-sm font-extrabold text-slate-950 dark:text-white leading-none mb-1">
-                      {profileUser?.posts_count || 0}
+                      {profileUser?.posts_count ?? posts.length}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                       Posts
@@ -455,6 +511,9 @@ const Profile = () => {
                   >
                     <Grid className="h-4 w-4 relative z-10" />
                     <span className="relative z-10">Posts</span>
+                    {activeTab === 'posts' && isPostsFetching && !showPostsSkeleton && (
+                      <Loader2 className="h-3 w-3 animate-spin text-indigo-500 relative z-10" />
+                    )}
                     {activeTab === 'posts' && (
                       <motion.div
                         layoutId="profileTabIndicator"
@@ -463,6 +522,7 @@ const Profile = () => {
                       />
                     )}
                   </button>
+
                   {isOwnProfile && (
                     <button
                       onClick={() => setActiveTab('saved')}
@@ -474,6 +534,9 @@ const Profile = () => {
                     >
                       <Bookmark className="h-4 w-4 relative z-10" />
                       <span className="relative z-10">Saved</span>
+                      {activeTab === 'saved' && isSavedFetching && !showSavedSkeleton && (
+                        <Loader2 className="h-3 w-3 animate-spin text-indigo-500 relative z-10" />
+                      )}
                       {activeTab === 'saved' && (
                         <motion.div
                           layoutId="profileTabIndicator"
@@ -487,46 +550,100 @@ const Profile = () => {
 
                 {/* Feed/List Content */}
                 <div className="p-4 flex flex-col space-y-4">
-                  {loadingContent ? (
-                    <div className="flex justify-center py-20">
-                      <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                    </div>
+                  {activeTab === 'posts' ? (
+                    showPostsSkeleton ? (
+                      /* POSTS SKELETON */
+                      <div className="space-y-4 animate-pulse">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-800" />
+                              <div className="space-y-1.5 flex-1">
+                                <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded w-1/5" />
+                              </div>
+                            </div>
+                            <div className="h-48 bg-slate-100 dark:bg-slate-800/60 rounded-xl" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : isPostsError && posts.length === 0 ? (
+                      /* POSTS ERROR */
+                      <div className="text-center py-12 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-2xl p-6 shadow-sm">
+                        <AlertCircle className="h-8 w-8 text-rose-500 mx-auto mb-2" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                          {postsError?.message || 'Failed to load posts.'}
+                        </p>
+                        <button
+                          onClick={() => refetchPosts()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          <span>Retry</span>
+                        </button>
+                      </div>
+                    ) : posts.length === 0 ? (
+                      <div className="text-center py-20 text-xs text-slate-400 dark:text-slate-500 font-light bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                        This user hasn't uploaded any posts yet.
+                      </div>
+                    ) : (
+                      posts.map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onLikeUpdate={handleLikeUpdate}
+                          onSaveUpdate={handleSaveUpdate}
+                          onDeletePost={handleDeletePost}
+                        />
+                      ))
+                    )
                   ) : (
-                    <>
-                      {activeTab === 'posts' ? (
-                        posts.length === 0 ? (
-                          <div className="text-center py-20 text-xs text-slate-400 dark:text-slate-500 font-light bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-                            This user hasn't uploaded any posts yet.
+                    showSavedSkeleton ? (
+                      /* SAVED POSTS SKELETON */
+                      <div className="space-y-4 animate-pulse">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-800" />
+                              <div className="space-y-1.5 flex-1">
+                                <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded w-1/5" />
+                              </div>
+                            </div>
+                            <div className="h-48 bg-slate-100 dark:bg-slate-800/60 rounded-xl" />
                           </div>
-                        ) : (
-                          posts.map((post) => (
-                            <PostCard
-                              key={post.id}
-                              post={post}
-                              onLikeUpdate={handleLikeUpdate}
-                              onSaveUpdate={handleSaveUpdate}
-                              onDeletePost={handleDeletePost}
-                            />
-                          ))
-                        )
-                      ) : (
-                        savedPosts.length === 0 ? (
-                          <div className="text-center py-20 text-xs text-slate-400 dark:text-slate-500 font-light bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-                            You haven't bookmarked any posts yet.
-                          </div>
-                        ) : (
-                          savedPosts.map((post) => (
-                            <PostCard
-                              key={post.id}
-                              post={post}
-                              onLikeUpdate={handleLikeUpdate}
-                              onSaveUpdate={handleSaveUpdate}
-                              onDeletePost={handleDeletePost}
-                            />
-                          ))
-                        )
-                      )}
-                    </>
+                        ))}
+                      </div>
+                    ) : isSavedError && savedPosts.length === 0 ? (
+                      /* SAVED ERROR */
+                      <div className="text-center py-12 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-2xl p-6 shadow-sm">
+                        <AlertCircle className="h-8 w-8 text-rose-500 mx-auto mb-2" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                          Failed to load saved posts.
+                        </p>
+                        <button
+                          onClick={() => refetchSaved()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          <span>Retry</span>
+                        </button>
+                      </div>
+                    ) : savedPosts.length === 0 ? (
+                      <div className="text-center py-20 text-xs text-slate-400 dark:text-slate-500 font-light bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                        You haven't bookmarked any posts yet.
+                      </div>
+                    ) : (
+                      savedPosts.map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onLikeUpdate={handleLikeUpdate}
+                          onSaveUpdate={handleSaveUpdate}
+                          onDeletePost={handleDeletePost}
+                        />
+                      ))
+                    )
                   )}
                 </div>
               </div>
@@ -545,14 +662,18 @@ const Profile = () => {
       />
 
       {/* Post Modal */}
-      <CreatePostModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onPostCreated={handlePostCreated} />
+      <CreatePostModal 
+        isOpen={isCreateOpen} 
+        onClose={() => setIsCreateOpen(false)} 
+        onPostCreated={handlePostCreated} 
+      />
 
       {/* Followers / Following Modal */}
       <FollowersFollowingModal
         isOpen={followModal.isOpen}
         onClose={() => setFollowModal({ ...followModal, isOpen: false })}
         type={followModal.type}
-        username={username}
+        username={profileUser?.username || targetUsername}
       />
 
       {/* Lightbox Media Viewer Modal for Profile and Cover Pictures */}

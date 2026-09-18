@@ -1,18 +1,50 @@
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import CreatePostModal from '../components/CreatePostModal'
-import { Bell, Heart, MessageSquare, UserPlus, CheckCircle2, Loader2, Activity, Search, Plus } from 'lucide-react'
+import { 
+  Bell, 
+  Heart, 
+  MessageSquare, 
+  UserPlus, 
+  CheckCircle2, 
+  Loader2, 
+  Activity, 
+  Search, 
+  Plus, 
+  AlertCircle, 
+  RefreshCw 
+} from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { notificationsService } from '../supabaseService'
+import { cacheHelpers } from '../context/QueryProvider'
 
 const Notifications = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+
+  const userId = user?.id || user?._id
+
+  // TanStack Query for user-isolated cached notifications
+  const {
+    data: notifications = [],
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['notifications', userId],
+    queryFn: () => notificationsService.getNotifications(userId),
+    enabled: Boolean(userId),
+    staleTime: 30 * 1000,
+  })
+
+  // Show skeleton loader ONLY when no cache exists and the initial query is pending
+  const showInitialLoading = isPending && notifications.length === 0
 
   const handlePostCreated = (newPost, type) => {
     if (type === 'post') {
@@ -20,38 +52,28 @@ const Notifications = () => {
     }
   }
 
-  const fetchNotifications = async () => {
-    if (!user) return
-    setLoading(true)
-    try {
-      const data = await notificationsService.getNotifications()
-      setNotifications(data)
-    } catch (error) {
-      console.error('Error fetching notifications:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Optimistic mark all as read
   const handleMarkAllRead = async () => {
-    if (!user) return
+    if (!userId) return
+    cacheHelpers.setAllNotificationsRead(userId)
     try {
-      await notificationsService.markAllAsRead(user.id)
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      await notificationsService.markAllAsRead(userId)
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err)
+      refetch()
     }
   }
 
+  // Optimistic click & mark single read
   const handleNotificationClick = async (notif) => {
-    if (!user) return
+    if (!userId) return
 
     if (!notif.is_read) {
+      cacheHelpers.setNotificationRead(userId, notif.id)
       try {
         await notificationsService.markAsRead(notif.id)
-        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n))
-      } catch (error) {
-        console.error('Error marking notification read:', error)
+      } catch (err) {
+        console.error('Error marking notification read:', err)
       }
     }
 
@@ -69,12 +91,6 @@ const Notifications = () => {
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications()
-    }
-  }, [user])
-
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'follow':
@@ -84,7 +100,7 @@ const Notifications = () => {
       case 'comment':
         return <MessageSquare className="h-4 w-4 text-emerald-500" />
       default:
-        return <Bell className="h-4 w-4 text-indigo-600" />
+        return <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
     }
   }
 
@@ -172,11 +188,21 @@ const Notifications = () => {
           
           {/* Header */}
           <div className="flex justify-between items-center mb-6 text-left shrink-0">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Bell className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Notifications</span>
-            </h3>
-            {notifications.some(n => !n.is_read) && (
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Bell className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Notifications</span>
+              </h3>
+              {/* Subtle background revalidation indicator */}
+              {isFetching && !showInitialLoading && (
+                <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 animate-pulse ml-2" title="Refreshing in background...">
+                  <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+                  <span className="hidden sm:inline">Updating</span>
+                </span>
+              )}
+            </div>
+
+            {notifications.some((n) => !n.is_read) && (
               <button 
                 onClick={handleMarkAllRead}
                 className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors flex items-center gap-1 cursor-pointer"
@@ -187,14 +213,65 @@ const Notifications = () => {
             )}
           </div>
 
+          {/* Background error banner if cached data is visible but revalidation failed */}
+          {isError && notifications.length > 0 && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>Couldn't update notifications. Showing cached data.</span>
+              </div>
+              <button
+                onClick={() => refetch()}
+                className="font-bold underline ml-2 hover:opacity-80 cursor-pointer text-[11px]"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* List items */}
           <div className="space-y-3">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
-                <span className="text-xs">Loading notifications...</span>
+            {showInitialLoading ? (
+              /* SKELETON UI - Only rendered when first request is pending without cached data */
+              <div className="space-y-3 animate-pulse">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm"
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
+                        <div className="h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-md w-1/4" />
+                      </div>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 shrink-0 ml-3" />
+                  </div>
+                ))}
+              </div>
+            ) : isError && notifications.length === 0 ? (
+              /* ERROR STATE WITH RETRY - Real request failure with no cache */
+              <div className="text-center py-16 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-2xl p-8 shadow-sm">
+                <div className="h-12 w-12 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center mx-auto mb-3 text-rose-500">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  Unable to load notifications
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+                  {error?.message || 'We had trouble connecting to the server. Please check your connection and try again.'}
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Try Again</span>
+                </button>
               </div>
             ) : notifications.length === 0 ? (
+              /* EMPTY STATE - Succeeded but user genuinely has 0 notifications */
               <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
                 <Bell className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Quiet here</h4>
@@ -203,6 +280,7 @@ const Notifications = () => {
                 </p>
               </div>
             ) : (
+              /* SUCCESS STATE - Render list of notifications */
               notifications.map((notif) => (
                 <div
                   key={notif.id}

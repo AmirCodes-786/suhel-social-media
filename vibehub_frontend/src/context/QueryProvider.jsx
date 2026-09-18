@@ -75,6 +75,18 @@ export const cacheHelpers = {
     }
   },
 
+  invalidateProfilePosts: (username) => {
+    if (username) {
+      queryClient.invalidateQueries({ queryKey: ['profile-posts', username] })
+    }
+  },
+
+  invalidateSavedPosts: (userId) => {
+    if (userId) {
+      queryClient.invalidateQueries({ queryKey: ['saved-posts', userId] })
+    }
+  },
+
   // Suggestions operations
   invalidateSuggestions: (userId) => {
     if (userId) {
@@ -88,6 +100,24 @@ export const cacheHelpers = {
       queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
       queryClient.invalidateQueries({ queryKey: ['unread-badges', userId] })
     }
+  },
+
+  setNotificationRead: (userId, notificationId) => {
+    if (!userId || !notificationId) return
+    queryClient.setQueryData(['notifications', userId], (oldData) => {
+      if (!Array.isArray(oldData)) return oldData
+      return oldData.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+    })
+    queryClient.invalidateQueries({ queryKey: ['unread-badges', userId] })
+  },
+
+  setAllNotificationsRead: (userId) => {
+    if (!userId) return
+    queryClient.setQueryData(['notifications', userId], (oldData) => {
+      if (!Array.isArray(oldData)) return oldData
+      return oldData.map((n) => ({ ...n, is_read: true }))
+    })
+    queryClient.invalidateQueries({ queryKey: ['unread-badges', userId] })
   },
 
   // Complete User Cache Eviction on Logout / Switch Account

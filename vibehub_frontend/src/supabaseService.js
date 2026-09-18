@@ -60,7 +60,7 @@ export const postsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching user posts:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -133,7 +133,7 @@ export const postsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching saved posts:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -185,7 +185,7 @@ export const profilesService = {
       return data || null;
     } catch (err) {
       console.error('Error getting profile:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -531,7 +531,7 @@ export const notificationsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching notifications:', err);
-      return [];
+      throw err;
     }
   },
 

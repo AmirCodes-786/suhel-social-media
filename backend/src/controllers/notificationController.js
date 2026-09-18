@@ -4,12 +4,24 @@ import { formatNotification } from '../utils/formatters.js';
 export const getNotifications = async (req, res, next) => {
   try {
     const currentUserId = req.userId;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 40, 1), 100);
 
     const notifications = await Notification.find({ recipient: currentUserId })
       .sort({ createdAt: -1 })
-      .populate({ path: 'sender', populate: { path: 'profile' } })
-      .populate('post')
-      .populate('comment');
+      .limit(limit)
+      .populate({
+        path: 'sender',
+        select: 'username first_name last_name email profile',
+        populate: {
+          path: 'profile',
+          select: 'bio profile_picture cover_picture website location',
+        },
+      })
+      .populate({
+        path: 'post',
+        select: 'content',
+      })
+      .lean();
 
     const formatted = notifications.map((n) => formatNotification(n, currentUserId));
     return res.json(formatted);
