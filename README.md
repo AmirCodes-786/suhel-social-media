@@ -77,7 +77,7 @@
 - **Styling:** Tailwind CSS v4 & Custom CSS Design Tokens
 - **State & Data Fetching:** `@tanstack/react-query` v5, React Context API
 - **Animations:** Framer Motion 12
-- **Icons:** Lucide React
+- **Icons & Emojis:** Lucide React, Emoji Picker React
 - **Media Experience:** Custom HTML5 Video Architecture, Canvas Lightbox
 - **3D Graphics:** Three.js (Interactive login background canvas)
 - **Routing:** React Router DOM 7
@@ -89,7 +89,8 @@
 - **Database:** MongoDB via Mongoose ODM 8
 - **Authentication:** JSON Web Tokens (JWT), Bcrypt.js, Supabase Auth Fallback
 - **Media Uploads:** Multer with Cloudinary integration
-- **Security:** Helmet, Express Rate Limit, CORS Whitelisting, Mongo Sanitization
+- **Security & Performance:** Helmet, Express Rate Limit, CORS Whitelisting, Compression
+- **Logging:** Morgan
 - **Testing:** Jest, Supertest, In-Memory MongoDB Server (`mongodb-memory-server`)
 
 ---
