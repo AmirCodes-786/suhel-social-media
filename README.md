@@ -239,7 +239,7 @@ MONGO_URI=mongodb://localhost:27017/vibehub
 # MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/vibehub?retryWrites=true&w=majority
 
 # JWT Token Secret & Expiration
-JWT_SECRET=super_secret_production_ready_jwt_key_32_chars_long
+JWT_SECRET=your-jwt-secret-at-least-32-characters-long
 JWT_EXPIRE=7d
 
 # Cloudinary Storage Credentials (Optional: cloud media hosting)

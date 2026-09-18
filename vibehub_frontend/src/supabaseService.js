@@ -37,7 +37,7 @@ export const postsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching trending posts:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -59,7 +59,7 @@ export const postsService = {
       return data || null;
     } catch (err) {
       console.error('Error fetching single post:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -140,7 +140,7 @@ export const commentsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching comments:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -262,7 +262,7 @@ export const followsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching followers:', err);
-      return [];
+      throw err;
     }
   },
 
@@ -273,7 +273,7 @@ export const followsService = {
       return data || [];
     } catch (err) {
       console.error('Error fetching following:', err);
-      return [];
+      throw err;
     }
   },
 };

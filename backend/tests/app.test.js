@@ -2,14 +2,15 @@ import request from 'supertest';
 import app from '../src/app.js';
 
 describe('App & Middleware Infrastructure', () => {
-  it('should respond with 200 and health payload on GET /health', async () => {
+  it('should reflect database state on GET /health (503 when disconnected)', async () => {
     const res = await request(app).get('/health');
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('status', 'ok');
+    // In test environment, MongoDB is not connected — expect 503 'degraded'
+    expect(res.status).toBe(503);
+    expect(res.body).toHaveProperty('status', 'degraded');
     expect(res.body).toHaveProperty('uptime');
     expect(res.body).toHaveProperty('timestamp');
-    expect(res.body).toHaveProperty('database');
+    expect(res.body).toHaveProperty('database', 'disconnected');
   });
 
   it('should return 404 with detail message on non-existent endpoint', async () => {

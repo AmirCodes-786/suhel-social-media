@@ -1,7 +1,7 @@
 import express from 'express';
 import compression from 'compression';
 import morgan from 'morgan';
-import mongoose from 'mongoose';
+import { getDbState } from './config/db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -42,15 +42,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static file serving for local uploads
 app.use('/uploads', express.static(config.uploadDir));
 
-// Health Check endpoint
+// Health Check endpoint — HTTP 503 when database is unavailable
 app.get('/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  res.json({
-    status: 'ok',
+  const db = getDbState();
+  const isHealthy = db.status === 'connected';
+  const statusCode = isHealthy ? 200 : 503;
+
+  res.status(statusCode).json({
+    status: isHealthy ? 'ok' : 'degraded',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
-    database: dbStatus,
+    database: db.status,
   });
 });
 
