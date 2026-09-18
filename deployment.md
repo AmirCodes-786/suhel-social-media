@@ -1,53 +1,60 @@
-# 🚀 VibeHub Production Deployment Guide (Node.js & React)
+# 🚀 VibeHub From-Scratch Deployment Guide
+
+If you are deleting your previous deployments on Vercel and Render and starting completely fresh, follow these steps exactly in order.
 
 > [!CAUTION]
-> **NEVER commit real credentials to this file or any tracked file.**
-> All secrets must be configured exclusively through your hosting dashboard's
-> Environment Variables panel (Render, Vercel, etc.).
->
-> If credentials were previously committed to Git history, they should be
-> considered compromised and rotated immediately.
+> **NEVER commit real credentials to this file or any tracked file.** All secrets must be configured exclusively through your hosting dashboard's Environment Variables panel.
 
 ---
 
-## Step 1: Update Backend Service on Render
+## Phase 1: Deploy the Backend (Render)
 
-Your backend is a modern **Node.js Express & MongoDB** application.
+We must deploy the backend first so we know what its final URL will be.
 
 1. Go to your **[Render Dashboard](https://dashboard.render.com/)**.
-2. Click on your existing Web Service (`suhel-social-media` / `vibehub-backend`).
-3. Go to the **Settings** tab:
+2. **Delete** your existing VibeHub Web Service if you haven't already.
+3. Click **New +** > **Web Service**.
+4. Connect your GitHub repository (`suhel-social-media`).
+5. Configure the service:
+   - **Name**: `vibehub-backend-v2` (or whatever you prefer)
    - **Root Directory**: `backend`
+   - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-4. Go to the **Environment** tab and set these Environment Variables:
-
-| Key | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `PORT` | `10000` |
-| `MONGODB_URI` | `<your-mongodb-atlas-connection-string>` |
-| `JWT_SECRET` | `<your-jwt-secret-at-least-32-characters>` |
-| `JWT_EXPIRES_IN` | `7d` |
-| `SUPABASE_JWT_SECRET` | `<your-supabase-jwt-secret>` |
-| `CLOUDINARY_CLOUD_NAME` | `<your-cloudinary-cloud-name>` |
-| `CLOUDINARY_API_KEY` | `<your-cloudinary-api-key>` |
-| `CLOUDINARY_API_SECRET` | `<your-cloudinary-api-secret>` |
-| `CORS_ORIGIN` | `https://your-frontend-domain.vercel.app,http://localhost:5173` |
-
-5. Click **Save Changes** → Click **Manual Deploy** → **Deploy latest commit**.
+6. Scroll down to **Environment Variables** and add the following keys:
+   - `NODE_ENV` = `production`
+   - `MONGODB_URI` = *(Your exact MongoDB Atlas connection string: `mongodb+srv://...`)*
+   - `JWT_SECRET` = *(Any random long string, e.g. `my-super-secret-key-12345`)*
+   - `CORS_ORIGIN` = `*` *(We will restrict this later if needed, leave as `*` for now to guarantee it works)*
+7. Click **Create Web Service**.
+8. Wait for it to finish building and say **"Live"**.
+9. **CRITICAL:** Copy the URL Render gives you at the top left (e.g., `https://vibehub-backend-v2.onrender.com`). **Save this URL for Phase 2.**
 
 ---
 
-## Step 2: Update Vercel Frontend Configuration
+## Phase 2: Deploy the Frontend (Vercel)
+
+Now that your backend is alive and we know its URL, we can deploy the frontend.
 
 1. Go to your **[Vercel Dashboard](https://vercel.com/dashboard)**.
-2. Select your frontend project.
-3. Go to **Settings** → **Environment Variables**:
-   - `VITE_API_URL` = `https://your-render-backend.onrender.com`
-4. Trigger a **Redeploy** on Vercel so the frontend picks up the new bundle.
+2. **Delete** your existing VibeHub frontend project if you haven't already (Settings > General > scroll to bottom > Delete).
+3. Click **Add New...** > **Project**.
+4. Import your GitHub repository (`suhel-social-media`).
+5. Configure the project:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: `vibehub_frontend`
+6. Open the **Environment Variables** dropdown and add these keys:
+   - `VITE_API_URL` = *(Paste the Render URL from Phase 1 here! Do NOT include a trailing slash. Example: `https://vibehub-backend-v2.onrender.com`)*
+   - `VITE_SUPABASE_URL` = *(Your Supabase Project URL)*
+   - `VITE_SUPABASE_ANON_KEY` = *(Your Supabase anon public key)*
+7. Click **Deploy**.
+8. Wait for the build to finish.
 
 ---
 
-### 🎉 Result
-Your Node.js backend on Render will now handle all API endpoints (`/api/posts`, `/api/users`, `/api/stories`, `/api/chat`, etc.) and connect directly to MongoDB Atlas.
+## Phase 3: Final Verification
+
+1. Click on the URL Vercel gives you to open your new live site.
+2. Open Chrome Developer Tools (F12) > **Console** tab just in case.
+3. Log in to your account.
+4. Your Feed, Explore, and Profile should now instantly populate with your data!
