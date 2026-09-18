@@ -21,6 +21,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust the first proxy (e.g. Render's load balancer) for accurate IP rate limiting
+app.set('trust proxy', 1);
+
 // Security & Performance Middleware
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
