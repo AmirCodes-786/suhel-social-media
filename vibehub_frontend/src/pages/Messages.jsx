@@ -717,7 +717,7 @@ const Messages = () => {
                 {/* Message Input Bottom Bar */}
                 <form
                   onSubmit={handleSendMessage}
-                  className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-end gap-2 shrink-0 relative"
+                  className="px-3 py-3 md:px-4 md:py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-end gap-2 shrink-0 relative"
                 >
                   {/* Emoji Picker Popup */}
                   {showEmojiPicker && (
@@ -740,7 +740,7 @@ const Messages = () => {
                     className="hidden"
                   />
 
-                  <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500 mb-1">
+                  <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
                     <button
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -782,7 +782,7 @@ const Messages = () => {
                   <button
                     type="submit"
                     disabled={(!inputText.trim() && !mediaFile) || sending}
-                    className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 mb-0.5 ${
+                    className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 ${
                       (inputText.trim() || mediaFile) && !sending
                         ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
