@@ -103,7 +103,12 @@ export const login = async (req, res, next) => {
 export const getMe = async (req, res, next) => {
   try {
     const user = await populateUserCounts(req.user, req.userId);
-    return res.json(user);
+    const token = generateToken(user._id || user.id);
+    return res.json({
+      ...user,
+      token,
+      access_token: token,
+    });
   } catch (error) {
     next(error);
   }

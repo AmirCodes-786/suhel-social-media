@@ -92,6 +92,9 @@ const buildSupabaseUser = (supabaseUser) => {
       setBackendStatus('connecting')
       const { data } = await api.get('/api/users/me/')
       if (data) {
+        if (data.token) {
+          localStorage.setItem('vibehub_token', data.token)
+        }
         setUser(data)
         setBackendStatus('online')
         return data

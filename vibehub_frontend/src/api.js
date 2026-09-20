@@ -158,6 +158,12 @@ api.interceptors.request.use(
 // ─── Response Interceptor ───────────────────────────────────────────
 api.interceptors.response.use(
   (response) => {
+    // Automatically capture native token issued by backend
+    const nativeToken = response.headers?.['x-vibehub-token'] || response.data?.token
+    if (nativeToken && typeof nativeToken === 'string') {
+      localStorage.setItem('vibehub_token', nativeToken)
+    }
+
     if (import.meta.env.DEV) {
       const duration = Date.now() - (response.config?._startTime || Date.now())
       console.debug(`[API] ${response.config?.method?.toUpperCase()} ${response.config?.url} | ${response.status} | ${duration}ms | ${response.config?._authType}`)
