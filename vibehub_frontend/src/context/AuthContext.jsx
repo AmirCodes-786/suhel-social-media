@@ -62,8 +62,32 @@ export const AuthProvider = ({ children }) => {
 
   const initRef = useRef(false)
 
+// Helper to construct a local user representation from Supabase user metadata
+const buildSupabaseUser = (supabaseUser) => {
+  if (!supabaseUser) return null
+  const meta = supabaseUser.user_metadata || {}
+  return {
+    _id: supabaseUser.id,
+    id: supabaseUser.id,
+    username: meta.user_name || meta.username || meta.preferred_username || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'user'),
+    email: supabaseUser.email,
+    first_name: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || '',
+    last_name: meta.full_name?.split(' ').slice(1).join(' ') || meta.name?.split(' ').slice(1).join(' ') || '',
+    profile: {
+      profile_picture: meta.avatar_url || meta.picture || null,
+    },
+    profile_picture: meta.avatar_url || meta.picture || null,
+  }
+}
+
   // ─── Profile fetcher (resilient) ──────────────────────────────────
   const fetchProfile = useCallback(async (userId, supabaseUser) => {
+    // If we have Supabase user data, immediately ensure local user exists
+    if (supabaseUser) {
+      const fallback = buildSupabaseUser(supabaseUser)
+      setUser((prev) => prev || fallback)
+    }
+
     try {
       setBackendStatus('connecting')
       const { data } = await api.get('/api/users/me/')
@@ -76,46 +100,36 @@ export const AuthProvider = ({ children }) => {
       const errorType = classifyError(err)
 
       if (isTransientError(errorType)) {
-        // Backend is temporarily unavailable (cold start, 5xx, network error)
-        // DO NOT clear auth — keep cached user and session intact
-        console.warn('[AUTH] Backend temporarily unavailable, keeping cached session:', errorType)
+        console.warn('[AUTH] Backend temporarily unavailable, keeping session:', errorType)
         setBackendStatus('offline')
-
-        // If we have a Supabase user, build a minimal fallback user
-        if (!user && supabaseUser) {
-          const meta = supabaseUser.user_metadata || {}
-          const fallbackUser = {
-            _id: supabaseUser.id,
-            id: supabaseUser.id,
-            username: meta.user_name || meta.username || meta.preferred_username || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'user'),
-            email: supabaseUser.email,
-            first_name: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || '',
-            last_name: meta.full_name?.split(' ').slice(1).join(' ') || meta.name?.split(' ').slice(1).join(' ') || '',
-            profile: {
-              profile_picture: meta.avatar_url || meta.picture || null,
-            },
-            profile_picture: meta.avatar_url || meta.picture || null,
-          }
-          setUser(fallbackUser)
-          return fallbackUser
+        if (supabaseUser) {
+          const fallback = buildSupabaseUser(supabaseUser)
+          setUser((prev) => prev || fallback)
+          return fallback
         }
-        return null // Keep existing cached user
+        return null
       }
 
       if (errorType === ErrorType.AUTH_ERROR) {
-        // Genuine 401 — token is actually invalid
-        console.warn('[AUTH] Token rejected by server (401), clearing auth')
-        localStorage.removeItem('vibehub_token')
-        setUser(null)
+        // If it's a native token, 401 means token is truly invalid
+        if (localStorage.getItem('vibehub_token')) {
+          console.warn('[AUTH] Native token rejected by server (401), clearing auth')
+          localStorage.removeItem('vibehub_token')
+          setUser(null)
+        } else if (supabaseUser) {
+          // Supabase session is valid, but backend may not have verified Supabase JWT yet
+          console.warn('[AUTH] Backend 401 on Supabase token; maintaining Supabase session')
+          const fallback = buildSupabaseUser(supabaseUser)
+          setUser((prev) => prev || fallback)
+        }
         setBackendStatus('online')
         return null
       }
 
-      // Other errors (403, 400, etc.) — don't clear session
       console.warn('[AUTH] Profile fetch error:', errorType)
     }
     return null
-  }, [setUser, user])
+  }, [setUser])
 
   // ─── Deterministic Auth Initialization ────────────────────────────
   useEffect(() => {
@@ -127,7 +141,7 @@ export const AuthProvider = ({ children }) => {
     // Safety timeout — never stay loading forever
     const safetyTimeout = setTimeout(() => {
       if (mounted) setLoading(false)
-    }, 5000)
+    }, 2500)
 
     const initializeAuth = async () => {
       try {
@@ -147,17 +161,15 @@ export const AuthProvider = ({ children }) => {
             const errorType = classifyError(err)
 
             if (isTransientError(errorType)) {
-              // Backend down — KEEP the token, KEEP the cached user
               console.warn('[AUTH] Backend unavailable during init, preserving session')
               setBackendStatus('offline')
               if (mounted) {
                 setLoading(false)
                 clearTimeout(safetyTimeout)
               }
-              return // Keep cached user, don't clear anything
+              return
             }
 
-            // Genuine 401 — token is actually invalid
             if (errorType === ErrorType.AUTH_ERROR) {
               console.warn('[AUTH] Native token rejected (401), clearing')
               localStorage.removeItem('vibehub_token')
@@ -172,10 +184,16 @@ export const AuthProvider = ({ children }) => {
 
         if (currentSession?.user && mounted) {
           setSession(currentSession)
-          // Only fetch profile if user not already populated from native token
+          const localUser = buildSupabaseUser(currentSession.user)
+          setUser((prev) => prev || localUser)
+          setLoading(false)
+          clearTimeout(safetyTimeout)
+
+          // Fetch full backend profile asynchronously
           if (!localStorage.getItem('vibehub_token')) {
-            await fetchProfile(currentSession.user.id, currentSession.user)
+            fetchProfile(currentSession.user.id, currentSession.user)
           }
+          return
         }
       } catch (error) {
         console.error('[AUTH] Error initializing auth:', error)
@@ -341,7 +359,12 @@ export const AuthProvider = ({ children }) => {
       if (data?.session) {
         setSession(data.session)
         invalidateTokenCache()
-        await fetchProfile(data.user.id, data.user)
+        const localUser = buildSupabaseUser(data.user)
+        setUser(localUser)
+        setLoading(false)
+        // Fetch full backend profile asynchronously
+        fetchProfile(data.user.id, data.user)
+        return data
       }
 
       setLoading(false)
