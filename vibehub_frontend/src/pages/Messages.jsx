@@ -323,7 +323,7 @@ const Messages = () => {
   const showMsgSkeleton = isMsgPending && messages.length === 0
 
   return (
-    <div className="h-[100dvh] w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit flex flex-col overflow-hidden relative">
+    <div className="h-dvh w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit flex flex-col overflow-hidden relative">
       
       {/* Top Header Bar */}
       <header className={`fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 z-40 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
