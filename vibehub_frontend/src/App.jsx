@@ -10,6 +10,7 @@ import { Activity } from 'lucide-react'
 // Code-split pages on demand
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const Feed = lazy(() => import('./pages/Feed'))
 const Explore = lazy(() => import('./pages/Explore'))
 const Messages = lazy(() => import('./pages/Messages'))
@@ -39,6 +40,7 @@ const AnimatedRoutes = () => {
         {/* Public Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Protected Application Routes */}
         <Route path="/" element={<ProtectedRoute><Feed /></ProtectedRoute>} />

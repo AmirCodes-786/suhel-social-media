@@ -1,13 +1,30 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-import api from '../api'
+import api, { classifyError, ErrorType, isTransientError, invalidateTokenCache } from '../api'
 import { cacheHelpers } from './QueryProvider'
 
 const AuthContext = createContext(null)
 
+// ─── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Check if ANY auth material exists in localStorage.
+ * Used to decide whether to show loading vs redirect to login.
+ */
+const hasAnyAuthMaterial = () => {
+  if (localStorage.getItem('vibehub_token')) return true
+  // Check for Supabase session keys
+  return Object.keys(localStorage).some(
+    (k) => k.startsWith('sb-') && k.endsWith('-auth-token')
+  )
+}
+
+// ─── Provider ───────────────────────────────────────────────────────
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null)
-  
+
+  // Hydrate cached user immediately on mount — no loading flash
   const [user, setInternalUser] = useState(() => {
     try {
       const cached = localStorage.getItem('vibehub_cached_user')
@@ -26,73 +43,91 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Start as not-loading if we have cached auth material
   const [loading, setLoading] = useState(() => {
     const hasToken = localStorage.getItem('vibehub_token')
     const hasCachedUser = localStorage.getItem('vibehub_cached_user')
     if (hasToken && hasCachedUser) return false
-    
-    const hasSupabaseSession = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+
+    const hasSupabaseSession = hasAnyAuthMaterial()
     if (hasSupabaseSession && hasCachedUser) return false
-    
+
     return true
   })
-  
+
   const [authError, setAuthError] = useState(null)
 
-  // Fetch follower/following/post counts for a user (via REST API)
-  const fetchProfileCounts = async (userId) => {
-    try {
-      const { data } = await api.get('/api/users/me/')
-      return {
-        followers_count: data?.followers_count || 0,
-        following_count: data?.following_count || 0,
-        posts_count: data?.posts_count || 0,
-      }
-    } catch {
-      return { followers_count: 0, following_count: 0, posts_count: 0 }
-    }
-  }
+  // Track backend connectivity for UI awareness
+  const [backendStatus, setBackendStatus] = useState('online') // 'online' | 'offline' | 'connecting'
 
-  // Fetch profile via REST API
+  const initRef = useRef(false)
+
+  // ─── Profile fetcher (resilient) ──────────────────────────────────
   const fetchProfile = useCallback(async (userId, supabaseUser) => {
     try {
+      setBackendStatus('connecting')
       const { data } = await api.get('/api/users/me/')
       if (data) {
         setUser(data)
+        setBackendStatus('online')
         return data
       }
     } catch (err) {
-      console.warn('Error fetching profile via REST API:', err)
-      if (supabaseUser && !localStorage.getItem('vibehub_token')) {
-        const meta = supabaseUser.user_metadata || {}
-        const fallbackUser = {
-          _id: supabaseUser.id,
-          id: supabaseUser.id,
-          username: meta.user_name || meta.username || meta.preferred_username || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'user'),
-          email: supabaseUser.email,
-          first_name: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || '',
-          last_name: meta.full_name?.split(' ').slice(1).join(' ') || meta.name?.split(' ').slice(1).join(' ') || '',
-          profile: {
+      const errorType = classifyError(err)
+
+      if (isTransientError(errorType)) {
+        // Backend is temporarily unavailable (cold start, 5xx, network error)
+        // DO NOT clear auth — keep cached user and session intact
+        console.warn('[AUTH] Backend temporarily unavailable, keeping cached session:', errorType)
+        setBackendStatus('offline')
+
+        // If we have a Supabase user, build a minimal fallback user
+        if (!user && supabaseUser) {
+          const meta = supabaseUser.user_metadata || {}
+          const fallbackUser = {
+            _id: supabaseUser.id,
+            id: supabaseUser.id,
+            username: meta.user_name || meta.username || meta.preferred_username || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'user'),
+            email: supabaseUser.email,
+            first_name: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || '',
+            last_name: meta.full_name?.split(' ').slice(1).join(' ') || meta.name?.split(' ').slice(1).join(' ') || '',
+            profile: {
+              profile_picture: meta.avatar_url || meta.picture || null,
+            },
             profile_picture: meta.avatar_url || meta.picture || null,
-          },
-          profile_picture: meta.avatar_url || meta.picture || null,
+          }
+          setUser(fallbackUser)
+          return fallbackUser
         }
-        setUser(fallbackUser)
-        return fallbackUser
+        return null // Keep existing cached user
       }
+
+      if (errorType === ErrorType.AUTH_ERROR) {
+        // Genuine 401 — token is actually invalid
+        console.warn('[AUTH] Token rejected by server (401), clearing auth')
+        localStorage.removeItem('vibehub_token')
+        setUser(null)
+        setBackendStatus('online')
+        return null
+      }
+
+      // Other errors (403, 400, etc.) — don't clear session
+      console.warn('[AUTH] Profile fetch error:', errorType)
     }
     return null
-  }, [])
+  }, [setUser, user])
 
-  // Listen to Auth State changes & check local token
+  // ─── Deterministic Auth Initialization ────────────────────────────
   useEffect(() => {
+    if (initRef.current) return
+    initRef.current = true
+
     let mounted = true
 
+    // Safety timeout — never stay loading forever
     const safetyTimeout = setTimeout(() => {
-      if (mounted) {
-        setLoading(false)
-      }
-    }, 3000)
+      if (mounted) setLoading(false)
+    }, 5000)
 
     const initializeAuth = async () => {
       try {
@@ -103,21 +138,37 @@ export const AuthProvider = ({ children }) => {
             const { data } = await api.get('/api/users/me/')
             if (data && mounted) {
               setUser(data)
+              setBackendStatus('online')
               setLoading(false)
               clearTimeout(safetyTimeout)
               return
             }
-          } catch {
-            localStorage.removeItem('vibehub_token')
-            if (mounted) {
-              setUser(null)
+          } catch (err) {
+            const errorType = classifyError(err)
+
+            if (isTransientError(errorType)) {
+              // Backend down — KEEP the token, KEEP the cached user
+              console.warn('[AUTH] Backend unavailable during init, preserving session')
+              setBackendStatus('offline')
+              if (mounted) {
+                setLoading(false)
+                clearTimeout(safetyTimeout)
+              }
+              return // Keep cached user, don't clear anything
+            }
+
+            // Genuine 401 — token is actually invalid
+            if (errorType === ErrorType.AUTH_ERROR) {
+              console.warn('[AUTH] Native token rejected (401), clearing')
+              localStorage.removeItem('vibehub_token')
+              if (mounted) setUser(null)
             }
           }
         }
 
-    // 2. Check Supabase session
+        // 2. Check Supabase session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession()
-        if (error) console.warn('getSession error:', error)
+        if (error) console.warn('[AUTH] getSession error:', error)
 
         if (currentSession?.user && mounted) {
           setSession(currentSession)
@@ -127,7 +178,7 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error)
+        console.error('[AUTH] Error initializing auth:', error)
       } finally {
         if (mounted) {
           clearTimeout(safetyTimeout)
@@ -140,16 +191,16 @@ export const AuthProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return
-      
-      // Intentional auth event handling
+
       if (event === 'TOKEN_REFRESHED') {
-        // Only update session tokens without refetching profile or replacing user object reference
         setSession(newSession)
+        invalidateTokenCache()
         return
       }
 
       if (event === 'SIGNED_OUT') {
         setSession(null)
+        invalidateTokenCache()
         if (!localStorage.getItem('vibehub_token')) {
           setUser(null)
         }
@@ -158,8 +209,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       setSession(newSession)
+      invalidateTokenCache()
+
       if (newSession?.user) {
-        // For SIGNED_IN or USER_UPDATED, fetch profile
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           await fetchProfile(newSession.user.id, newSession.user)
         }
@@ -174,9 +226,9 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(safetyTimeout)
       subscription?.unsubscribe?.()
     }
-  }, [fetchProfile])
+  }, [fetchProfile, setUser])
 
-  // Email / Password Signup
+  // ─── Email / Password Signup ──────────────────────────────────────
   const signup = async (email, password, userData = {}) => {
     setLoading(true)
     setAuthError(null)
@@ -185,7 +237,33 @@ export const AuthProvider = ({ children }) => {
     const first_name = full_name ? full_name.split(' ')[0] : ''
     const last_name = full_name ? full_name.split(' ').slice(1).join(' ') : ''
 
-    // 1. Try native backend registration
+    // 1. Try Supabase signup first (auth doesn't depend on Render)
+    try {
+      const { data: supabaseData, error: supabaseError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            user_name: username,
+            full_name: full_name || '',
+          },
+        },
+      })
+
+      if (supabaseError) {
+        // If user already exists in Supabase, try native backend
+        if (!supabaseError.message?.includes('already registered')) {
+          throw supabaseError
+        }
+      } else if (supabaseData?.session) {
+        setSession(supabaseData.session)
+        invalidateTokenCache()
+      }
+    } catch (supabaseErr) {
+      console.warn('[AUTH] Supabase signup failed:', supabaseErr.message)
+    }
+
+    // 2. Also register in backend for MongoDB user/profile creation
     try {
       const { data } = await api.post('/api/auth/register', {
         email,
@@ -201,47 +279,33 @@ export const AuthProvider = ({ children }) => {
         return data
       }
     } catch (err) {
-      console.warn('Native register attempt:', err?.response?.data?.error || err.message)
-      // If error from backend (like username taken), re-throw
-      if (err?.response?.status === 400) {
+      const errorType = classifyError(err)
+      console.warn('[AUTH] Backend register:', err?.response?.data?.error || err.message)
+
+      if (errorType === ErrorType.VALIDATION_ERROR) {
         setLoading(false)
         setAuthError(err.response.data.error || 'Registration failed')
         throw new Error(err.response.data.error || 'Registration failed')
       }
-    }
 
-    // 2. Fallback to Supabase Signup if backend not reachable
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            user_name: username,
-          },
-        },
-      })
-      if (error) throw error
-
-      if (data?.session) {
-        setSession(data.session)
-        await fetchProfile(data.user.id, data.user)
+      // If backend is down but Supabase succeeded, the user will be synced on first API call
+      if (isTransientError(errorType)) {
+        console.warn('[AUTH] Backend unavailable during signup, Supabase auth established')
+        setLoading(false)
+        return { user: null, pending_sync: true }
       }
-      setLoading(false)
-      return data
-    } catch (error) {
-      setLoading(false)
-      setAuthError(error.message)
-      throw error
     }
+
+    setLoading(false)
+    return null
   }
 
-  // Email / Password Login
+  // ─── Email / Password Login ───────────────────────────────────────
   const login = async (email, password) => {
     setLoading(true)
     setAuthError(null)
 
-    // 1. Try native backend login
+    // 1. Try native backend login first (faster for existing native users)
     try {
       const { data } = await api.post('/api/auth/login', {
         email,
@@ -254,15 +318,19 @@ export const AuthProvider = ({ children }) => {
         return data
       }
     } catch (err) {
-      console.warn('Native login attempt:', err?.response?.data?.error || err.message)
-      if (err?.response?.status === 400 && err.response.data.error !== 'Network Error') {
+      const errorType = classifyError(err)
+      console.warn('[AUTH] Native login:', err?.response?.data?.error || err.message)
+
+      // If backend explicitly rejected credentials (400), don't fall through to Supabase
+      if (errorType === ErrorType.VALIDATION_ERROR && err.response?.data?.error !== 'Network Error') {
         setLoading(false)
         setAuthError(err.response.data.error || 'Invalid credentials')
         throw new Error(err.response.data.error || 'Invalid credentials')
       }
+      // For transient errors (backend down), fall through to Supabase
     }
 
-    // 2. Fallback to Supabase Login
+    // 2. Fallback to Supabase Login (works even when Render is cold)
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -272,6 +340,7 @@ export const AuthProvider = ({ children }) => {
 
       if (data?.session) {
         setSession(data.session)
+        invalidateTokenCache()
         await fetchProfile(data.user.id, data.user)
       }
 
@@ -284,7 +353,7 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // Google OAuth Login
+  // ─── Google OAuth Login ───────────────────────────────────────────
   const loginWithGoogle = async () => {
     setLoading(true)
     setAuthError(null)
@@ -310,30 +379,50 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // Logout
+  // ─── Password Reset ───────────────────────────────────────────────
+  const resetPassword = async (email) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      })
+      if (error) throw error
+      return true
+    } catch (error) {
+      throw error
+    }
+  }
+
+  // ─── Logout ───────────────────────────────────────────────────────
   const logout = async () => {
     localStorage.removeItem('vibehub_token')
+    localStorage.removeItem('vibehub_cached_user')
+    invalidateTokenCache()
     cacheHelpers.clearUserCache()
     setUser(null)
     setSession(null)
     setLoading(false)
+    setBackendStatus('online')
     try {
       await supabase.auth.signOut()
     } catch (error) {
-      console.error('Error logging out:', error)
+      console.error('[AUTH] Error logging out:', error)
     }
   }
 
-  // Refresh user data
+  // ─── Refresh user data ────────────────────────────────────────────
   const refreshUser = async () => {
     try {
       const { data } = await api.get('/api/users/me/')
       if (data) {
         setUser(data)
+        setBackendStatus('online')
         return data
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      const errorType = classifyError(err)
+      if (isTransientError(errorType)) {
+        setBackendStatus('offline')
+      }
     }
     return null
   }
@@ -343,9 +432,11 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     authError,
+    backendStatus,
     login,
     signup,
     loginWithGoogle,
+    resetPassword,
     logout,
     refreshUser,
   }

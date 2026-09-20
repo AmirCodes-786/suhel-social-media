@@ -65,6 +65,9 @@ app.use('/api', apiLimiter);
 
 // Database Readiness Check Middleware
 app.use('/api', (req, res, next) => {
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
   const db = getDbState();
   if (db.status !== 'connected') {
     return res.status(503).json({

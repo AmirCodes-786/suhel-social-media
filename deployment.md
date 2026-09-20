@@ -25,7 +25,12 @@ We must deploy the backend first so we know what its final URL will be.
    - `NODE_ENV` = `production`
    - `MONGODB_URI` = *(Your exact MongoDB Atlas connection string: `mongodb+srv://...`)*
    - `JWT_SECRET` = *(Any random long string, e.g. `my-super-secret-key-12345`)*
-   - `CORS_ORIGIN` = `*` *(We will restrict this later if needed, leave as `*` for now to guarantee it works)*
+   - `JWT_EXPIRES_IN` = `7d` *(Optional, default is 7d)*
+   - `CORS_ORIGIN` = `https://your-frontend.vercel.app` *(or comma-separated list of allowed domains)*
+   - `SUPABASE_JWT_SECRET` = *(Optional, found in Supabase Dashboard > Project Settings > API > JWT Settings)*
+   - `CLOUDINARY_CLOUD_NAME` = *(Optional, for cloud media storage)*
+   - `CLOUDINARY_API_KEY` = *(Optional, for cloud media storage)*
+   - `CLOUDINARY_API_SECRET` = *(Optional, for cloud media storage)*
 7. Click **Create Web Service**.
 8. Wait for it to finish building and say **"Live"**.
 9. **CRITICAL:** Copy the URL Render gives you at the top left (e.g., `https://vibehub-backend-v2.onrender.com`). **Save this URL for Phase 2.**

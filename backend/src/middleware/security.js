@@ -9,12 +9,20 @@ export const helmetMiddleware = helmet({
 
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.) or matching allowed origins
-    if (!origin || config.cors.origin.includes('*') || config.cors.origin.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Permissive in development, strict in prod
+    // Allow requests with no origin (mobile apps, curl, server-to-server, etc.)
+    if (!origin) {
+      return callback(null, true);
     }
+    // Allow if wildcard is configured or origin matches whitelist
+    if (config.cors.origin.includes('*') || config.cors.origin.includes(origin)) {
+      return callback(null, true);
+    }
+    // In production, reject non-matching origins
+    if (config.isProduction) {
+      return callback(new Error(`CORS: Origin ${origin} is not allowed.`), false);
+    }
+    // In development, allow all origins for local testing
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

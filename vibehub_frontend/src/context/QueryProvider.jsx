@@ -1,22 +1,116 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  PersistQueryClientProvider,
+  persistQueryClientSave,
+  persistQueryClientRestore,
+} from '@tanstack/react-query-persist-client'
 
+// ─── User-Specific Cache Isolation ──────────────────────────────────
+const getUserId = () => {
+  try {
+    const cached = localStorage.getItem('vibehub_cached_user')
+    if (cached) {
+      const user = JSON.parse(cached)
+      return user?.id || user?._id || 'anonymous'
+    }
+  } catch { /* ignore */ }
+  return 'anonymous'
+}
+
+// ─── Custom localStorage Persister ──────────────────────────────────
+const CACHE_KEY = 'vibehub_query_cache'
+
+const createLocalStoragePersister = () => {
+  return {
+    persistClient: async (persistedClient) => {
+      try {
+        const data = {
+          ...persistedClient,
+          _userId: getUserId(),
+        }
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+      } catch (err) {
+        // localStorage full or unavailable — silently skip
+        if (import.meta.env.DEV) {
+          console.warn('[QUERY] Failed to persist cache:', err.message)
+        }
+      }
+    },
+    restoreClient: async () => {
+      try {
+        const str = localStorage.getItem(CACHE_KEY)
+        if (!str) return undefined
+
+        const data = JSON.parse(str)
+        const currentUserId = getUserId()
+
+        // If the cache belongs to a different user, reject it
+        if (data._userId && data._userId !== currentUserId && data._userId !== 'anonymous') {
+          if (import.meta.env.DEV) {
+            console.debug('[QUERY] Cache belongs to different user, invalidating')
+          }
+          localStorage.removeItem(CACHE_KEY)
+          return undefined
+        }
+
+        return data
+      } catch {
+        localStorage.removeItem(CACHE_KEY)
+        return undefined
+      }
+    },
+    removeClient: async () => {
+      try {
+        localStorage.removeItem(CACHE_KEY)
+      } catch { /* ignore */ }
+    },
+  }
+}
+
+const persister = createLocalStoragePersister()
+
+// ─── QueryClient Configuration ─────────────────────────────────────
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // 1 minute stale time: data is considered fresh for 1 min, no background refetch
+      // Data is considered fresh for 1 minute — no background refetch during this window
       staleTime: 60 * 1000,
-      // 10 minutes cache garbage collection time
+      // Keep cache in memory for 10 minutes after last subscriber unmounts
       gcTime: 10 * 60 * 1000,
-      // Crucial: do NOT refetch when returning to the tab!
+      // Do NOT refetch when returning to the tab — prevents skeleton flash
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      // Retry once on failure
       retry: 1,
+      // Important: Don't throw away previous data during background refetch
+      placeholderData: (previousData) => previousData,
     },
   },
 })
 
-// Targeted Cache Invalidation and Optimistic Update Helpers
+// ─── Persist Options ────────────────────────────────────────────────
+const persistOptions = {
+  persister,
+  // Cache persists for 24 hours max
+  maxAge: 24 * 60 * 60 * 1000,
+  // Only persist non-sensitive queries
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query) => {
+      // Persist feed, stories, suggestions, profile data, notifications
+      const persistableKeys = ['feed', 'stories', 'suggestions', 'profile', 'profile-posts', 'saved-posts', 'notifications', 'trending', 'explore']
+      const firstKey = query.queryKey?.[0]
+
+      // Don't persist if query errored
+      if (query.state.status === 'error') return false
+
+      // Only persist queries with matching keys
+      return persistableKeys.includes(firstKey)
+    },
+  },
+}
+
+// ─── Targeted Cache Invalidation and Optimistic Update Helpers ──────
 export const cacheHelpers = {
   // Feed operations
   invalidateFeed: (userId) => {
@@ -138,7 +232,6 @@ export const cacheHelpers = {
     if (!userId || !conversationId || !newMessage) return
     queryClient.setQueryData(['messages', userId, conversationId], (oldData) => {
       if (!Array.isArray(oldData)) return [newMessage]
-      // Avoid duplicate if already present (e.g. from optimistic ID match)
       if (oldData.some((m) => m.id === newMessage.id || (m._optimisticId && m._optimisticId === newMessage._optimisticId))) {
         return oldData.map((m) => (m._optimisticId === newMessage._optimisticId || m.id === newMessage.id ? newMessage : m))
       }
@@ -165,14 +258,22 @@ export const cacheHelpers = {
   // Complete User Cache Eviction on Logout / Switch Account
   clearUserCache: () => {
     queryClient.clear()
+    // Also remove persisted cache from localStorage
+    try {
+      localStorage.removeItem(CACHE_KEY)
+    } catch { /* ignore */ }
   },
 }
 
+// ─── Provider Component ─────────────────────────────────────────────
 export const QueryProvider = ({ children }) => {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+    >
       {children}
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   )
 }
 

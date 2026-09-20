@@ -6,7 +6,7 @@ import FeedSkeleton, { PostCardSkeleton } from '../components/FeedSkeleton'
 import CreatePostModal from '../components/CreatePostModal'
 import StoryViewerModal from '../components/StoryViewerModal'
 import PageTransition from '../components/PageTransition'
-import { Activity, Plus, Search, Users, Settings as SettingsIcon, AlertCircle, RefreshCw } from 'lucide-react'
+import { Activity, Plus, Search, Users, Settings as SettingsIcon, AlertCircle, RefreshCw, WifiOff } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
@@ -21,7 +21,7 @@ import {
 } from '../supabaseService'
 
 const Feed = () => {
-  const { user } = useAuth()
+  const { user, backendStatus } = useAuth()
   const userId = user?.id || user?._id
   const navigate = useNavigate()
 
@@ -39,6 +39,7 @@ const Feed = () => {
   const {
     data: initialFeedPosts,
     isLoading: loadingFeed,
+    isFetching: isFeedFetching,
     isError: isFeedError,
     error: feedError,
     refetch: refetchFeed,
@@ -208,8 +209,10 @@ const Feed = () => {
     { tag: '#DigitalArt', count: '2.7k vibes' }
   ]
 
-  // Only show skeleton on first cold load when no posts exist in state or cache
+  // Only show skeleton on first cold load when no posts exist (not even from persistent cache)
   const isInitialLoading = loadingFeed && posts.length === 0
+  // Background refresh: data exists but query is re-fetching
+  const isBackgroundRefresh = isFeedFetching && posts.length > 0 && !loadingFeed
 
   return (
     <PageTransition className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-outfit pb-16 md:pb-0 flex flex-col transition-colors duration-200">
@@ -328,7 +331,6 @@ const Feed = () => {
               </div>
             )}
 
-            {/* Background error banner if cached data is visible but revalidation failed */}
             {isFeedError && posts.length > 0 && (
               <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
                 <div className="flex items-center gap-2">
@@ -341,6 +343,22 @@ const Feed = () => {
                 >
                   Retry
                 </button>
+              </div>
+            )}
+
+            {/* Subtle background refresh indicator */}
+            {isBackgroundRefresh && (
+              <div className="mb-3 flex items-center justify-center gap-2 text-[11px] text-indigo-500 dark:text-indigo-400">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span>Refreshing feed...</span>
+              </div>
+            )}
+
+            {/* Backend offline banner */}
+            {backendStatus === 'offline' && posts.length > 0 && (
+              <div className="mb-4 p-3 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-xl flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <WifiOff className="h-4 w-4 shrink-0" />
+                <span>Server is waking up. Showing cached content.</span>
               </div>
             )}
 

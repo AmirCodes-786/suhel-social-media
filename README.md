@@ -231,32 +231,35 @@ Create a `.env` file in the `backend/` directory:
 PORT=5000
 NODE_ENV=development
 
-# Frontend Client Address (for CORS whitelist)
-CLIENT_URL=http://localhost:5173
-
 # MongoDB Connection String (Atlas or Local)
-MONGO_URI=mongodb://localhost:27017/vibehub
+MONGODB_URI=mongodb://127.0.0.1:27017/vibehub
 # Atlas example:
-# MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/vibehub?retryWrites=true&w=majority
+# MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/vibehub?retryWrites=true&w=majority
 
 # JWT Token Secret & Expiration
 JWT_SECRET=your-jwt-secret-at-least-32-characters-long
-JWT_EXPIRE=7d
+JWT_EXPIRES_IN=7d
+
+# Supabase JWT Secret (found in Supabase Dashboard > Project Settings > API > JWT Settings)
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret
 
 # Cloudinary Storage Credentials (Optional: cloud media hosting)
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# CORS Configuration (comma-separated frontend origins)
+CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
 ```
 
 ### 2. Frontend (`vibehub_frontend/.env`)
 Create a `.env` file in the `vibehub_frontend/` directory:
 
 ```env
-# Backend REST API endpoint
-VITE_API_BASE_URL=http://localhost:5000/api
+# Backend REST API endpoint (base URL, without /api)
+VITE_API_URL=http://localhost:5000
 
-# Supabase Auth & Realtime (Optional fallback)
+# Supabase Auth
 VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
@@ -337,13 +340,13 @@ Vite outputs minified, tree-shaken chunks into `vibehub_frontend/dist/`.
 - **Framework Preset:** `Vite`
 - **Build Command:** `npm run build`
 - **Output Directory:** `dist`
-- **Environment Variable:** `VITE_API_BASE_URL` pointing to your deployed backend (e.g. `https://api.vibehub.example.com/api`).
+- **Environment Variables:** `VITE_API_URL` pointing to your deployed backend (e.g. `https://suhel-social-media.onrender.com`), `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
 ### 3. Backend Deployment (Render / Railway / Fly.io)
 - **Root Directory:** `backend`
 - **Build Command:** `npm install`
 - **Start Command:** `node src/server.js`
-- **Environment Variables:** Set `NODE_ENV=production`, `PORT=5000`, `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL` (your frontend domain), and Cloudinary keys.
+- **Environment Variables:** Set `NODE_ENV=production`, `PORT=5000`, `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `SUPABASE_JWT_SECRET`, `CORS_ORIGIN` (your frontend domain), and Cloudinary keys.
 
 ---
 
