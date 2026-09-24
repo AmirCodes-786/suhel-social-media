@@ -1,18 +1,35 @@
 import React from 'react'
 import { Activity, RefreshCw, Home } from 'lucide-react'
 
+const CHUNK_RELOAD_KEY = 'vibehub_chunk_reload'
+
+/**
+ * Detects chunk/dynamic-import loading failures.
+ */
+function isChunkLoadError(error) {
+  if (!error) return false
+  const msg = error.message || ''
+  return (
+    error.name === 'ChunkLoadError' ||
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Loading chunk') ||
+    msg.includes('Loading CSS chunk') ||
+    msg.includes('Importing a module script failed')
+  )
+}
+
 /**
  * Error Boundary for route-level lazy-loaded components.
- * Catches:
- * - Dynamic import / chunk loading failures (e.g. network issues, deploy cache busts)
- * - Render errors inside lazy-loaded page components
  *
- * Provides a branded recovery UI instead of a blank white page.
+ * Recovery strategy for chunk errors:
+ * 1. First failure → auto-reload the page once (persisted via sessionStorage).
+ * 2. If the reload didn't fix it → show branded error UI with manual retry.
+ * 3. On successful render → clear the reload flag so future deploys get a fresh attempt.
  */
 class RouteErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null, hasAttemptedReload: false }
+    this.state = { hasError: false, error: null }
   }
 
   static getDerivedStateFromError(error) {
@@ -20,26 +37,43 @@ class RouteErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error) {
-    // Detect chunk/dynamic-import loading failures
-    const isChunkError =
-      error?.name === 'ChunkLoadError' ||
-      error?.message?.includes('Failed to fetch dynamically imported module') ||
-      error?.message?.includes('Loading chunk') ||
-      error?.message?.includes('Loading CSS chunk') ||
-      error?.message?.includes('Importing a module script failed')
+    if (isChunkLoadError(error)) {
+      const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY)
 
-    if (isChunkError && !this.state.hasAttemptedReload) {
-      // One-time auto-reload to recover from stale chunk references after a deploy
-      this.setState({ hasAttemptedReload: true })
-      window.location.reload()
+      if (!alreadyReloaded) {
+        // Persist the flag BEFORE reloading so it survives the navigation
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, Date.now().toString())
+        window.location.reload()
+        return
+      }
+      // If we already reloaded and it still failed, fall through to error UI
     }
   }
 
+  componentDidMount() {
+    // App rendered successfully — clear any stale reload flag
+    this.clearReloadFlag()
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    // If we recovered from an error (user clicked Retry and it worked), clear the flag
+    if (prevState.hasError && !this.state.hasError) {
+      this.clearReloadFlag()
+    }
+  }
+
+  clearReloadFlag() {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+  }
+
   handleRetry = () => {
+    // Clear the reload flag so a fresh auto-reload can happen if needed
+    this.clearReloadFlag()
     this.setState({ hasError: false, error: null })
   }
 
   handleGoHome = () => {
+    this.clearReloadFlag()
     this.setState({ hasError: false, error: null })
     window.location.href = '/'
   }

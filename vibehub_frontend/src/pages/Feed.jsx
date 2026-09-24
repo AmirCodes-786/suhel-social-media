@@ -74,14 +74,15 @@ const Feed = () => {
     }
   }, [initialFeedPosts, isFeedError, deferSecondary])
 
-  // Cap rendered posts to prevent unbounded DOM growth in long sessions.
-  // content-visibility: auto on PostCard handles offscreen paint skipping.
-  const MAX_RENDERED_POSTS = 80
+  // Maximum extra posts to accumulate in a single session.
+  // content-visibility: auto on PostCard handles paint virtualization for off-screen cards.
+  // This limit prevents memory growth from unbounded fetching, not from rendering.
+  const MAX_EXTRA_POSTS = 200
 
-  const posts = useMemo(() => {
-    const all = [...(initialFeedPosts || []), ...extraPosts]
-    return all.length > MAX_RENDERED_POSTS ? all.slice(0, MAX_RENDERED_POSTS) : all
-  }, [initialFeedPosts, extraPosts])
+  const posts = useMemo(
+    () => [...(initialFeedPosts || []), ...extraPosts],
+    [initialFeedPosts, extraPosts]
+  )
 
   const hasMore = extraHasMore !== null ? extraHasMore : Boolean(initialFeedPosts?.hasMore)
   const nextCursor = extraNextCursor !== null ? extraNextCursor : (initialFeedPosts?.nextCursor || null)
@@ -137,6 +138,7 @@ const Feed = () => {
   // Load next batch of posts via cursor (infinite scroll)
   const loadMorePosts = useCallback(async () => {
     if (!userId || loadingMore || !hasMore || !nextCursor) return
+    if (extraPosts.length >= MAX_EXTRA_POSTS) return
     setLoadingMore(true)
     try {
       const nextBatch = await postsService.getFeed(userId, { limit: 10, cursor: nextCursor })
@@ -153,7 +155,7 @@ const Feed = () => {
     } finally {
       setLoadingMore(false)
     }
-  }, [userId, loadingMore, hasMore, nextCursor])
+  }, [userId, loadingMore, hasMore, nextCursor, extraPosts.length])
 
   // Infinite Scroll IntersectionObserver
   useEffect(() => {
