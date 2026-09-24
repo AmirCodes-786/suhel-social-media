@@ -16,7 +16,14 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCount = 0 }) => {
+const Sidebar = ({ 
+  onCreateClick, 
+  unreadMessagesCount = 0, 
+  unreadNotificationsCount = 0,
+  fixedMobileNav = true,
+  hideMobileNav = false,
+  mobileNavClassName = ''
+}) => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -135,8 +142,15 @@ const Sidebar = ({ onCreateClick, unreadMessagesCount = 0, unreadNotificationsCo
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100/80 dark:border-slate-800/80 px-4 flex items-center justify-around z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
+      <nav 
+        className={`md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100/80 dark:border-slate-800/80 px-4 flex items-center justify-around z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.04)] ${
+          fixedMobileNav ? 'fixed bottom-0 left-0 right-0' : 'relative shrink-0 w-full'
+        } ${hideMobileNav ? 'hidden' : 'flex'} ${mobileNavClassName}`}
+        style={{
+          height: 'calc(3.75rem + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        }}
+      >
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path
