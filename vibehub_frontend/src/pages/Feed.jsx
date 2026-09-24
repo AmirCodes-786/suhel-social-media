@@ -11,6 +11,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { cacheHelpers } from '../context/QueryProvider'
+import { getOptimizedProfilePic } from '../utils/cloudinary'
 import {
   postsService,
   storiesService,
@@ -33,7 +34,15 @@ const Feed = () => {
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [loadingMore, setLoadingMore] = useState(false)
+  const [deferSecondary, setDeferSecondary] = useState(true)
   const sentinelRef = useRef(null)
+
+  // Defer non-critical requests to prioritize initial feed load
+  useEffect(() => {
+    // 800ms delay gives the feed enough time to fetch and render its first frame
+    const timer = setTimeout(() => setDeferSecondary(false), 800)
+    return () => clearTimeout(timer)
+  }, [])
 
   // 1. TanStack Query: Feed Posts
   const {
@@ -67,7 +76,7 @@ const Feed = () => {
       const data = await storiesService.getStories(userId)
       return data || []
     },
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && !deferSecondary,
     staleTime: 90 * 1000,
   })
 
@@ -81,7 +90,7 @@ const Feed = () => {
       const data = await profilesService.getSuggestions(userId)
       return (data || []).slice(0, 5)
     },
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && !deferSecondary,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -100,7 +109,7 @@ const Feed = () => {
         unreadMessages: chatCount || 0,
       }
     },
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && !deferSecondary,
     staleTime: 30 * 1000,
     refetchInterval: 30000,
   })
@@ -256,7 +265,7 @@ const Feed = () => {
 
           <Link to={`/profile/${user?.username}`}>
             <img
-              src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+              src={getOptimizedProfilePic(user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
               alt={user?.username}
               className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors"
             />
@@ -306,7 +315,7 @@ const Feed = () => {
                     >
                       <Link to={`/profile/${suggestion.username}`} className="flex flex-col items-center gap-1.5 group mb-2.5">
                         <img
-                          src={suggestion.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                          src={getOptimizedProfilePic(suggestion.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
                           alt={suggestion.username}
                           className="h-12 w-12 rounded-full border border-slate-100 dark:border-slate-700 object-cover group-hover:scale-105 transition-transform"
                         />
@@ -465,7 +474,7 @@ const Feed = () => {
                     <div key={suggestion.id} className="flex items-center justify-between">
                       <Link to={`/profile/${suggestion.username}`} className="flex items-center gap-3 group">
                         <img
-                          src={suggestion.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                          src={getOptimizedProfilePic(suggestion.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
                           alt={suggestion.username}
                           className="h-8 w-8 rounded-full border border-slate-100 dark:border-slate-700 object-cover group-hover:scale-105 transition-transform"
                         />

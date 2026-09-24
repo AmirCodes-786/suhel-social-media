@@ -34,10 +34,12 @@ export const VibeVideoPlayer = ({
   const containerRef = useRef(null)
   const videoRef = useRef(null)
   const progressBarRef = useRef(null)
+  const progressBarInnerRef = useRef(null)
+  const timeTextRef = useRef(null)
+  const rAFRef = useRef(null)
   const hideControlsTimeout = useRef(null)
 
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [buffered, setBuffered] = useState(0)
   const [volume, setVolume] = useState(1)
@@ -49,6 +51,34 @@ export const VibeVideoPlayer = ({
   const [playbackRate, setPlaybackRate] = useState(1)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
   const [showCenterPlayFlash, setShowCenterPlayFlash] = useState(false)
+  const [isInViewport, setIsInViewport] = useState(true)
+
+  // Intersection Observer for pausing video when out of viewport
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInViewport(entry.isIntersecting)
+      },
+      { threshold: 0.1 }
+    )
+    
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Auto-pause when leaving viewport
+  useEffect(() => {
+    if (!isInViewport && isPlaying) {
+      const video = videoRef.current
+      if (video && !video.paused) {
+        video.pause()
+        setIsPlaying(false)
+      }
+    }
+  }, [isInViewport, isPlaying])
 
   // Reset controls hide timer
   const resetHideTimer = useCallback(() => {
@@ -130,10 +160,36 @@ export const VibeVideoPlayer = ({
     }
   }
 
+  const updateProgressLoop = useCallback(() => {
+    const video = videoRef.current
+    if (video) {
+      if (timeTextRef.current) {
+        timeTextRef.current.textContent = formatTime(video.currentTime)
+      }
+      if (progressBarInnerRef.current && video.duration) {
+        const percent = (video.currentTime / video.duration) * 100
+        progressBarInnerRef.current.style.width = `${percent}%`
+      }
+    }
+    if (isPlaying) {
+      rAFRef.current = requestAnimationFrame(updateProgressLoop)
+    }
+  }, [isPlaying])
+
+  useEffect(() => {
+    if (isPlaying) {
+      rAFRef.current = requestAnimationFrame(updateProgressLoop)
+    } else if (rAFRef.current) {
+      cancelAnimationFrame(rAFRef.current)
+    }
+    return () => {
+      if (rAFRef.current) cancelAnimationFrame(rAFRef.current)
+    }
+  }, [isPlaying, updateProgressLoop])
+
   const handleTimeUpdate = () => {
     const video = videoRef.current
     if (!video) return
-    setCurrentTime(video.currentTime)
 
     // Calculate buffer
     if (video.buffered.length > 0) {
@@ -164,7 +220,12 @@ export const VibeVideoPlayer = ({
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     const newTime = pos * duration
     video.currentTime = newTime
-    setCurrentTime(newTime)
+    if (timeTextRef.current) {
+      timeTextRef.current.textContent = formatTime(newTime)
+    }
+    if (progressBarInnerRef.current) {
+      progressBarInnerRef.current.style.width = `${pos * 100}%`
+    }
     resetHideTimer()
   }
 
@@ -193,8 +254,6 @@ export const VibeVideoPlayer = ({
     setShowSpeedMenu(false)
     resetHideTimer()
   }
-
-  const progressPercent = duration ? (currentTime / duration) * 100 : 0
 
   return (
     <div
@@ -324,8 +383,9 @@ export const VibeVideoPlayer = ({
 
           {/* Played progress */}
           <div
-            className="absolute left-0 top-0 bottom-0 bg-indigo-500 rounded-full relative transition-all"
-            style={{ width: `${progressPercent}%` }}
+            ref={progressBarInnerRef}
+            className="absolute left-0 top-0 bottom-0 bg-indigo-500 rounded-full relative transition-all duration-75"
+            style={{ width: '0%' }}
           >
             {/* Scrubber thumb */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-3.5 w-3.5 rounded-full bg-white shadow-md scale-0 group-hover/progress:scale-100 transition-transform" />
@@ -374,7 +434,7 @@ export const VibeVideoPlayer = ({
 
             {/* Time Stamp */}
             <div className="text-[11px] font-mono text-zinc-300">
-              <span>{formatTime(currentTime)}</span>
+              <span ref={timeTextRef}>0:00</span>
               <span className="mx-1 text-zinc-500">/</span>
               <span>{formatTime(duration)}</span>
             </div>

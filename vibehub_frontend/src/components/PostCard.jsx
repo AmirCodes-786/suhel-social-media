@@ -7,6 +7,7 @@ import { postsService, commentsService } from '../supabaseService'
 import VibeVideoPlayer from './VibeVideoPlayer'
 import MediaViewerModal from './MediaViewerModal'
 import { cacheHelpers } from '../context/QueryProvider'
+import { getOptimizedProfilePic, getOptimizedFeedImage, getOptimizedLightboxImage } from '../utils/cloudinary'
 
 const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
   const { user } = useAuth()
@@ -208,14 +209,14 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      layout
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
       className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08)] dark:shadow-none transition-all duration-300 mb-6 p-4 text-left font-outfit relative"
     >
       {/* Header (User profile row) */}
       <div className="flex items-center justify-between pb-3.5">
         <Link to={`/profile/${post.author_detail?.username}`} className="flex items-center gap-3 group">
           <img
-            src={post.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+            src={getOptimizedProfilePic(post.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
             alt={post.author_detail?.username}
             loading="lazy"
             decoding="async"
@@ -330,7 +331,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
           ) : (
             <>
               <img 
-                src={post.media} 
+                src={getOptimizedFeedImage(post.media)} 
                 alt="Post media" 
                 loading="lazy"
                 decoding="async"
@@ -481,7 +482,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
                     {/* Root Comment */}
                     <div className="flex gap-3 text-left">
                       <img
-                        src={comment.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                        src={getOptimizedProfilePic(comment.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
                         alt={comment.author_detail?.username}
                         className="h-8 w-8 rounded-full border border-slate-100 dark:border-slate-800 object-cover shrink-0"
                       />
@@ -507,7 +508,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
                       <div key={reply.id} className="flex gap-3 text-left pl-8">
                         <CornerDownRight className="h-4 w-4 text-slate-300 dark:text-slate-600 mt-1 shrink-0" />
                         <img
-                          src={reply.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                          src={getOptimizedProfilePic(reply.author_detail?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
                           alt={reply.author_detail?.username}
                           className="h-6 w-6 rounded-full border border-slate-100 dark:border-slate-800 object-cover shrink-0"
                         />
@@ -536,7 +537,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
                 </div>
               )}
               <img
-                src={user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                src={getOptimizedProfilePic(user?.profile?.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80')}
                 alt="Your profile"
                 className="h-8 w-8 rounded-full border border-slate-100 dark:border-slate-800 object-cover shrink-0"
               />
@@ -565,7 +566,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
       {post.media && post.media_type !== 'video' && (
         <MediaViewerModal
           isOpen={isMediaViewerOpen}
-          src={post.media}
+          src={getOptimizedLightboxImage(post.media)}
           alt={post.content || 'Post image'}
           caption={post.content || `@${post.author_detail?.username}'s post`}
           onClose={() => setIsMediaViewerOpen(false)}

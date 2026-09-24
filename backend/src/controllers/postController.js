@@ -14,33 +14,23 @@ const enrichPosts = async (posts, currentUserId) => {
 
   const postIds = posts.map((p) => p._id);
 
-  const [likesCounts, commentsCounts, userLikes, userSaves] = await Promise.all([
-    Like.aggregate([
-      { $match: { post: { $in: postIds } } },
-      { $group: { _id: '$post', count: { $sum: 1 } } },
-    ]),
-    Comment.aggregate([
-      { $match: { post: { $in: postIds } } },
-      { $group: { _id: '$post', count: { $sum: 1 } } },
-    ]),
+  const [userLikes, userSaves] = await Promise.all([
     currentUserId
-      ? Like.find({ user: currentUserId, post: { $in: postIds } }).select('post')
+      ? Like.find({ user: currentUserId, post: { $in: postIds } }).select('post').lean()
       : [],
     currentUserId
-      ? SavedPost.find({ user: currentUserId, post: { $in: postIds } }).select('post')
+      ? SavedPost.find({ user: currentUserId, post: { $in: postIds } }).select('post').lean()
       : [],
   ]);
 
-  const likesMap = new Map(likesCounts.map((l) => [l._id.toString(), l.count]));
-  const commentsMap = new Map(commentsCounts.map((c) => [c._id.toString(), c.count]));
   const likedSet = new Set(userLikes.map((l) => l.post.toString()));
   const savedSet = new Set(userSaves.map((s) => s.post.toString()));
 
   return posts.map((post) => {
     const id = post._id.toString();
     return formatPost(post, currentUserId, {
-      likes_count: likesMap.get(id) || 0,
-      comments_count: commentsMap.get(id) || 0,
+      likes_count: post.likes_count || 0,
+      comments_count: post.comments_count || 0,
       is_liked: likedSet.has(id),
       is_saved: savedSet.has(id),
     });
@@ -315,14 +305,16 @@ export const likePost = async (req, res, next) => {
         post: post._id,
       });
 
-      const likesCount = await Like.countDocuments({ post: post._id });
-      return res.json({ is_liked: false, likes_count: likesCount });
+      const updatedPost = await Post.findByIdAndUpdate(post._id, { $inc: { likes_count: -1 } }, { new: true });
+      return res.json({ is_liked: false, likes_count: Math.max(0, updatedPost.likes_count) });
     }
 
     await Like.create({
       user: req.userId,
       post: post._id,
     });
+    
+    const updatedPost = await Post.findByIdAndUpdate(post._id, { $inc: { likes_count: 1 } }, { new: true });
 
     if (post.author.toString() !== req.userId) {
       await createNotification({
@@ -333,8 +325,7 @@ export const likePost = async (req, res, next) => {
       });
     }
 
-    const likesCount = await Like.countDocuments({ post: post._id });
-    return res.json({ is_liked: true, likes_count: likesCount });
+    return res.json({ is_liked: true, likes_count: updatedPost.likes_count });
   } catch (error) {
     next(error);
   }
@@ -427,6 +418,8 @@ export const createComment = async (req, res, next) => {
       content: content.trim(),
       parent: parentComment ? parentComment._id : null,
     });
+    
+    await Post.updateOne({ _id: post._id }, { $inc: { comments_count: 1 } });
 
     await comment.populate({ path: 'author', populate: { path: 'profile' } });
 

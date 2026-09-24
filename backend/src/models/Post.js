@@ -21,6 +21,14 @@ const postSchema = new mongoose.Schema(
       enum: ['image', 'video', 'text'],
       default: 'text',
     },
+    likes_count: {
+      type: Number,
+      default: 0,
+    },
+    comments_count: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
