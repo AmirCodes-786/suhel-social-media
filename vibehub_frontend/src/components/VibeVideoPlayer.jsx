@@ -52,21 +52,33 @@ export const VibeVideoPlayer = ({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
   const [showCenterPlayFlash, setShowCenterPlayFlash] = useState(false)
   const [isInViewport, setIsInViewport] = useState(true)
+  const [isNearViewport, setIsNearViewport] = useState(true)
 
-  // Intersection Observer for pausing video when out of viewport
+  // Intersection Observers for lazy loading and auto-pausing
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
-    const observer = new IntersectionObserver(
+    const playObserver = new IntersectionObserver(
       ([entry]) => {
         setIsInViewport(entry.isIntersecting)
       },
       { threshold: 0.1 }
     )
+
+    const loadObserver = new IntersectionObserver(
+      ([entry]) => {
+        setIsNearViewport(entry.isIntersecting)
+      },
+      { rootMargin: '800px 0px' }
+    )
     
-    observer.observe(el)
-    return () => observer.disconnect()
+    playObserver.observe(el)
+    loadObserver.observe(el)
+    return () => {
+      playObserver.disconnect()
+      loadObserver.disconnect()
+    }
   }, [])
 
   // Auto-pause when leaving viewport
@@ -269,7 +281,7 @@ export const VibeVideoPlayer = ({
       {/* Native HTML5 Video Element with security & no-download flags */}
       <video
         ref={videoRef}
-        src={src}
+        src={isNearViewport ? src : undefined}
         poster={poster}
         autoPlay={autoPlay}
         muted={isMuted}

@@ -7,7 +7,7 @@ import { postsService, commentsService } from '../supabaseService'
 import VibeVideoPlayer from './VibeVideoPlayer'
 import MediaViewerModal from './MediaViewerModal'
 import { cacheHelpers } from '../context/QueryProvider'
-import { getOptimizedProfilePic, getOptimizedFeedImage, getOptimizedLightboxImage } from '../utils/cloudinary'
+import { getOptimizedProfilePic, getOptimizedFeedImage, getOptimizedLightboxImage, getOptimizedFeedVideo } from '../utils/cloudinary'
 
 const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
   const { user } = useAuth()
@@ -324,7 +324,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
         >
           {post.media_type === 'video' ? (
             <VibeVideoPlayer 
-              src={post.media}
+              src={getOptimizedFeedVideo(post.media)}
               className="w-full"
               maxHeight="500px"
             />

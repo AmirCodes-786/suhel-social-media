@@ -37,12 +37,13 @@ const Feed = () => {
   const [deferSecondary, setDeferSecondary] = useState(true)
   const sentinelRef = useRef(null)
 
-  // Defer non-critical requests to prioritize initial feed load
+  // Defer non-critical requests until the feed finishes loading, or after a fallback timeout
   useEffect(() => {
-    // 800ms delay gives the feed enough time to fetch and render its first frame
-    const timer = setTimeout(() => setDeferSecondary(false), 800)
-    return () => clearTimeout(timer)
-  }, [])
+    if (deferSecondary) {
+      const fallbackTimer = setTimeout(() => setDeferSecondary(false), 1500)
+      return () => clearTimeout(fallbackTimer)
+    }
+  }, [deferSecondary])
 
   // 1. TanStack Query: Feed Posts
   const {
@@ -55,12 +56,23 @@ const Feed = () => {
   } = useQuery({
     queryKey: ['feed', userId],
     queryFn: async () => {
-      const data = await postsService.getFeed(userId, { limit: 12 })
+      const data = await postsService.getFeed(userId, { limit: 8 })
       return data || []
     },
     enabled: Boolean(userId),
     staleTime: 60 * 1000, // 1 min freshness
   })
+
+  // Once the main feed has loaded (or errored), release the deferred queries
+  useEffect(() => {
+    if ((initialFeedPosts || isFeedError) && deferSecondary) {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => setDeferSecondary(false))
+      } else {
+        setTimeout(() => setDeferSecondary(false), 200)
+      }
+    }
+  }, [initialFeedPosts, isFeedError, deferSecondary])
 
   const posts = [...(initialFeedPosts || []), ...extraPosts]
   const hasMore = extraHasMore !== null ? extraHasMore : Boolean(initialFeedPosts?.hasMore)

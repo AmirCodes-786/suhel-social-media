@@ -13,11 +13,19 @@ export const getCloudinaryUrl = (originalUrl, options = {}) => {
   // Avoid modifying video URLs which often have different parameters, though format=webp works for some, 
   // generally videos are requested as .mp4 or handled by VibeVideoPlayer natively.
   if (originalUrl.includes('/video/upload/')) {
-    // Basic video optimization
+    // Basic video optimization (prevent huge 4k downloads on mobile)
     const parts = originalUrl.split('/upload/');
     if (parts.length !== 2) return originalUrl;
-    if (parts[1].startsWith('q_') || parts[1].startsWith('f_')) return originalUrl;
-    return `${parts[0]}/upload/q_auto,f_auto/${parts[1]}`;
+    if (parts[1].startsWith('c_') || parts[1].startsWith('w_') || parts[1].startsWith('q_') || parts[1].startsWith('f_')) {
+      return originalUrl;
+    }
+    
+    let transformString = `f_auto,q_auto`;
+    if (width && width !== 'auto') {
+      transformString += `,c_${crop},w_${width}`;
+    }
+    
+    return `${parts[0]}/upload/${transformString}/${parts[1]}`;
   }
 
   const parts = originalUrl.split('/upload/');
@@ -41,3 +49,4 @@ export const getOptimizedProfilePic = (url) => getCloudinaryUrl(url, { width: 15
 export const getOptimizedThumbnail = (url) => getCloudinaryUrl(url, { width: 400, crop: 'fill' });
 export const getOptimizedFeedImage = (url) => getCloudinaryUrl(url, { width: 800 });
 export const getOptimizedLightboxImage = (url) => getCloudinaryUrl(url, { width: 1600 });
+export const getOptimizedFeedVideo = (url) => getCloudinaryUrl(url, { width: 720, crop: 'limit' });
