@@ -269,16 +269,16 @@ export const sendMessage = async (req, res, next) => {
 
     await message.populate({ path: 'sender', populate: { path: 'profile' } });
 
-    // Trigger notification to other participants
-    for (const pId of conversation.participants) {
+    // Trigger notification to other participants asynchronously without blocking response
+    conversation.participants.forEach((pId) => {
       if (pId.toString() !== currentUserId) {
-        await createNotification({
+        createNotification({
           recipient: pId,
           sender: currentUserId,
           type: 'message',
-        });
+        }).catch((err) => console.error('[Notification error]', err?.message || err));
       }
-    }
+    });
 
     return res.status(201).json(formatMessage(message, currentUserId));
   } catch (error) {

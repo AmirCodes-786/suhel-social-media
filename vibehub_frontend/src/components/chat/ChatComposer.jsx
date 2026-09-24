@@ -64,7 +64,6 @@ const ChatComposer = forwardRef(function ChatComposer(
     if (e && e.preventDefault) e.preventDefault()
     const trimmed = inputText.trim()
     if (!trimmed && !mediaFile) return
-    if (sending) return
 
     const mediaType = mediaFile?.type?.startsWith('video/')
       ? 'video'
@@ -110,7 +109,7 @@ const ChatComposer = forwardRef(function ChatComposer(
     textareaRef.current?.focus()
   }
 
-  const canSend = (inputText.trim().length > 0 || Boolean(mediaFile)) && !sending
+  const canSend = inputText.trim().length > 0 || Boolean(mediaFile)
 
   return (
     <div className="shrink-0 w-full bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 transition-colors relative z-20">
@@ -216,11 +215,7 @@ const ChatComposer = forwardRef(function ChatComposer(
           }`}
           title="Send Message"
         >
-          {sending ? (
-            <Loader2 className="h-4.5 w-4.5 animate-spin" />
-          ) : (
-            <Send className="h-4.5 w-4.5" />
-          )}
+          <Send className="h-4.5 w-4.5" />
         </button>
       </form>
     </div>

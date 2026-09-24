@@ -86,6 +86,29 @@ const Messages = () => {
       const data = await chatService.getMessages(activeConversation.id)
       // Background mark-as-read
       chatService.markAsRead(activeConversation.id, currentUserId).catch(() => {})
+
+      // Preserve any pending optimistic messages currently in cache
+      const currentCache = queryClient.getQueryData(['messages', currentUserId, activeConversation.id])
+      const pendingOptimistic = Array.isArray(currentCache)
+        ? currentCache.filter((m) => m.isOptimistic || m.id?.toString().startsWith('temp-'))
+        : []
+
+      if (pendingOptimistic.length > 0 && Array.isArray(data)) {
+        // Keep optimistic messages that haven't been returned by server yet
+        const notYetInServer = pendingOptimistic.filter(
+          (opt) =>
+            !data.some(
+              (serverMsg) =>
+                serverMsg.id === opt.id ||
+                serverMsg.id === opt._optimisticId ||
+                (serverMsg.content === opt.content &&
+                  serverMsg.sender === opt.sender &&
+                  Math.abs(new Date(serverMsg.created_at) - new Date(opt.created_at)) < 30000)
+            )
+        )
+        return [...data, ...notYetInServer]
+      }
+
       return data || []
     },
     enabled: Boolean(currentUserId && activeConversation?.id),
@@ -278,6 +301,23 @@ const Messages = () => {
     cacheHelpers.appendMessage(currentUserId, activeConversation.id, optimisticMsg)
     setSending(true)
 
+    // Instantly reflect latest message preview in conversations sidebar optimistically
+    queryClient.setQueryData(['conversations', currentUserId], (old) => {
+      if (!Array.isArray(old)) return old
+      return old.map((c) =>
+        c.id === activeConversation.id
+          ? {
+              ...c,
+              last_message: {
+                content: messageText || (mediaType === 'image' ? 'Sent a photo' : 'Sent a video'),
+                created_at: optimisticMsg.created_at,
+              },
+              updated_at: optimisticMsg.created_at,
+            }
+          : c
+      ).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    })
+
     // Scroll to bottom immediately on sending
     requestAnimationFrame(() => {
       scrollToBottom('smooth')
@@ -294,7 +334,14 @@ const Messages = () => {
 
       queryClient.setQueryData(['messages', currentUserId, activeConversation.id], (old) => {
         if (!Array.isArray(old)) return [sentData]
-        return old.map((m) => (m.id === tempId || m._optimisticId === tempId ? sentData : m))
+        const hasTemp = old.some((m) => m.id === tempId || m._optimisticId === tempId)
+        if (hasTemp) {
+          return old.map((m) => (m.id === tempId || m._optimisticId === tempId ? sentData : m))
+        }
+        if (!old.some((m) => m.id === sentData.id)) {
+          return [...old, sentData]
+        }
+        return old
       })
 
       queryClient.setQueryData(['conversations', currentUserId], (old) => {
