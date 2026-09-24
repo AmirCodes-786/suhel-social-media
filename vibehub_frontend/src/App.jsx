@@ -5,19 +5,30 @@ import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { QueryProvider } from './context/QueryProvider'
 import ProtectedRoute from './components/ProtectedRoute'
+import RouteErrorBoundary from './components/RouteErrorBoundary'
 import { Activity } from 'lucide-react'
 
-// Code-split pages on demand
-const Login = lazy(() => import('./pages/Login'))
-const Signup = lazy(() => import('./pages/Signup'))
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
-const Feed = lazy(() => import('./pages/Feed'))
-const Explore = lazy(() => import('./pages/Explore'))
-const Messages = lazy(() => import('./pages/Messages'))
-const Notifications = lazy(() => import('./pages/Notifications'))
-const Profile = lazy(() => import('./pages/Profile'))
-const PostDetail = lazy(() => import('./pages/PostDetail'))
-const Settings = lazy(() => import('./pages/Settings'))
+// Code-split pages on demand with retry logic for chunk failures
+const lazyWithRetry = (importFn) =>
+  lazy(() =>
+    importFn().catch(() => {
+      // If a chunk fails to load (e.g. after a deploy), retry once
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(importFn()), 1500)
+      })
+    })
+  )
+
+const Login = lazyWithRetry(() => import('./pages/Login'))
+const Signup = lazyWithRetry(() => import('./pages/Signup'))
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'))
+const Feed = lazyWithRetry(() => import('./pages/Feed'))
+const Explore = lazyWithRetry(() => import('./pages/Explore'))
+const Messages = lazyWithRetry(() => import('./pages/Messages'))
+const Notifications = lazyWithRetry(() => import('./pages/Notifications'))
+const Profile = lazyWithRetry(() => import('./pages/Profile'))
+const PostDetail = lazyWithRetry(() => import('./pages/PostDetail'))
+const Settings = lazyWithRetry(() => import('./pages/Settings'))
 
 const RouteFallback = () => (
   <div className="min-h-screen w-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center font-outfit">
@@ -35,7 +46,7 @@ const RouteFallback = () => (
 const AnimatedRoutes = () => {
   const location = useLocation()
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
         {/* Public Auth Routes */}
         <Route path="/login" element={<Login />} />
@@ -64,9 +75,11 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <Router>
-            <Suspense fallback={<RouteFallback />}>
-              <AnimatedRoutes />
-            </Suspense>
+            <RouteErrorBoundary>
+              <Suspense fallback={<RouteFallback />}>
+                <AnimatedRoutes />
+              </Suspense>
+            </RouteErrorBoundary>
           </Router>
         </AuthProvider>
       </ThemeProvider>

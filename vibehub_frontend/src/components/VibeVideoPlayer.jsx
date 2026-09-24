@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Loader2,
   AlertCircle,
-  Settings
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -38,6 +37,7 @@ export const VibeVideoPlayer = ({
   const timeTextRef = useRef(null)
   const rAFRef = useRef(null)
   const hideControlsTimeout = useRef(null)
+  const srcRef = useRef(src)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -46,13 +46,20 @@ export const VibeVideoPlayer = ({
   const [isMuted, setIsMuted] = useState(muted)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
   const [showCenterPlayFlash, setShowCenterPlayFlash] = useState(false)
-  const [isInViewport, setIsInViewport] = useState(true)
-  const [isNearViewport, setIsNearViewport] = useState(true)
+
+  // Start false so videos don't load before IntersectionObserver initializes
+  const [isInViewport, setIsInViewport] = useState(false)
+  const [isNearViewport, setIsNearViewport] = useState(false)
+
+  // Keep src ref up to date
+  useEffect(() => {
+    srcRef.current = src
+  }, [src])
 
   // Intersection Observers for lazy loading and auto-pausing
   useEffect(() => {
@@ -72,7 +79,7 @@ export const VibeVideoPlayer = ({
       },
       { rootMargin: '800px 0px' }
     )
-    
+
     playObserver.observe(el)
     loadObserver.observe(el)
     return () => {
@@ -91,6 +98,42 @@ export const VibeVideoPlayer = ({
       }
     }
   }, [isInViewport, isPlaying])
+
+  // Resource release: when far outside viewport, fully unload the video
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (!isNearViewport) {
+      // Far outside viewport — release video resource
+      if (!video.paused) {
+        video.pause()
+      }
+      video.removeAttribute('src')
+      video.load()
+      setIsPlaying(false)
+      setDuration(0)
+      setBuffered(0)
+      setIsLoading(false)
+    } else {
+      // Near viewport — restore src if not already set
+      if (!video.src || video.src === window.location.href) {
+        video.src = srcRef.current
+        video.load()
+        setIsLoading(true)
+      }
+    }
+  }, [isNearViewport])
+
+  // Handle autoPlay when video becomes ready in viewport
+  useEffect(() => {
+    if (autoPlay && isNearViewport && isInViewport) {
+      const video = videoRef.current
+      if (video && video.paused && video.readyState >= 2) {
+        video.play().catch(() => {})
+      }
+    }
+  }, [autoPlay, isNearViewport, isInViewport])
 
   // Reset controls hide timer
   const resetHideTimer = useCallback(() => {
@@ -219,6 +262,10 @@ export const VibeVideoPlayer = ({
       setDuration(videoRef.current.duration)
       setIsLoading(false)
       setHasError(false)
+      // Restore playback rate if it was changed before resource was released
+      if (playbackRate !== 1) {
+        videoRef.current.playbackRate = playbackRate
+      }
     }
   }
 
@@ -281,9 +328,7 @@ export const VibeVideoPlayer = ({
       {/* Native HTML5 Video Element with security & no-download flags */}
       <video
         ref={videoRef}
-        src={isNearViewport ? src : undefined}
         poster={poster}
-        autoPlay={autoPlay}
         muted={isMuted}
         loop={loop}
         playsInline
@@ -303,8 +348,11 @@ export const VibeVideoPlayer = ({
           if (onEnded) onEnded()
         }}
         onError={() => {
-          setIsLoading(false)
-          setHasError(true)
+          // Only show error if we actually have a src set (not during resource release)
+          if (videoRef.current?.src && videoRef.current.src !== window.location.href) {
+            setIsLoading(false)
+            setHasError(true)
+          }
         }}
         onClick={(e) => {
           e.stopPropagation()
@@ -315,7 +363,7 @@ export const VibeVideoPlayer = ({
       />
 
       {/* Loading Spinner */}
-      {isLoading && (
+      {isLoading && isNearViewport && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none z-20">
           <Loader2 className="h-10 w-10 text-white animate-spin drop-shadow-md" />
         </div>
@@ -329,8 +377,10 @@ export const VibeVideoPlayer = ({
           <button
             onClick={() => {
               if (videoRef.current) {
+                videoRef.current.src = srcRef.current
                 videoRef.current.load()
                 setHasError(false)
+                setIsLoading(true)
               }
             }}
             className="mt-2 text-[10px] text-indigo-400 hover:text-indigo-300 underline flex items-center gap-1 cursor-pointer"

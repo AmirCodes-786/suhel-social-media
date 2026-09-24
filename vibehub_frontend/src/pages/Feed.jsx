@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Sidebar from '../components/Sidebar'
 import StoriesBar from '../components/StoriesBar'
 import PostCard from '../components/PostCard'
@@ -74,7 +74,15 @@ const Feed = () => {
     }
   }, [initialFeedPosts, isFeedError, deferSecondary])
 
-  const posts = [...(initialFeedPosts || []), ...extraPosts]
+  // Cap rendered posts to prevent unbounded DOM growth in long sessions.
+  // content-visibility: auto on PostCard handles offscreen paint skipping.
+  const MAX_RENDERED_POSTS = 80
+
+  const posts = useMemo(() => {
+    const all = [...(initialFeedPosts || []), ...extraPosts]
+    return all.length > MAX_RENDERED_POSTS ? all.slice(0, MAX_RENDERED_POSTS) : all
+  }, [initialFeedPosts, extraPosts])
+
   const hasMore = extraHasMore !== null ? extraHasMore : Boolean(initialFeedPosts?.hasMore)
   const nextCursor = extraNextCursor !== null ? extraNextCursor : (initialFeedPosts?.nextCursor || null)
 

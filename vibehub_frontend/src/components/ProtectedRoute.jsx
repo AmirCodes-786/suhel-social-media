@@ -3,18 +3,6 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Activity } from 'lucide-react'
 
-/**
- * Check if ANY auth material exists in localStorage.
- * If tokens exist, the user was previously authenticated — we should show
- * a connecting state rather than redirecting to login (the backend may be cold).
- */
-const hasAnyAuthMaterial = () => {
-  if (localStorage.getItem('vibehub_token')) return true
-  if (localStorage.getItem('vibehub_cached_user')) return true
-  return Object.keys(localStorage).some(
-    (k) => k.startsWith('sb-') && k.endsWith('-auth-token')
-  )
-}
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth()
