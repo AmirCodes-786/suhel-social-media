@@ -54,7 +54,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
 
     // Optimistic update
     const wasLiked = post.is_liked
-    const oldCount = post.likes_count
+    const oldCount = post.likes_count || 0
     const newLiked = !wasLiked
     const newCount = newLiked ? oldCount + 1 : oldCount - 1
     const userId = user.id || user._id
@@ -386,7 +386,7 @@ const PostCard = ({ post, onLikeUpdate, onSaveUpdate, onDeletePost }) => {
             >
               <Heart className={`h-5 w-5 transition-colors ${post.is_liked ? 'fill-rose-500 text-rose-500' : ''}`} />
             </motion.div>
-            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">{post.likes_count}</span>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">{post.likes_count || 0}</span>
           </button>
           
           <button 

@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 import Post from './src/models/Post.js';
 import Like from './src/models/Like.js';
@@ -30,6 +30,7 @@ async function migrate() {
         { _id: post._id },
         { $set: { likes_count, comments_count } }
       );
+      console.log(`  Post ${post._id}: likes=${likes_count}, comments=${comments_count}`);
     }
 
     console.log('Migration completed successfully');
